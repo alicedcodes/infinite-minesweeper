@@ -1,0 +1,45 @@
+:root {
+  --c-background: hsl(0 0% 10%);
+  --c-menu: hsl(0 0% 20%);
+
+  --c-text: hsl(0 0% 100%);
+
+  --c-border: hsl(0 0% 100%);
+
+  background-color: var(--c-background);
+  color: var(--c-text);
+  color-scheme: light;
+  font-family: "Noto Emoji", sans-serif;
+}
+
+html {
+  height: 100%;
+  display: flex;
+}
+
+body {
+  flex: auto;
+  display: flex;
+}
+
+#app {
+  flex: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#controls {
+  display: flex;
+  background-color: var(--c-menu);
+  box-shadow: 0 2px 2px hsl(0 0% 0% / 0.2);
+  z-index: 1;
+  align-items: center;
+}
+
+#tip {
+  flex: auto;
+}
+
+#fmsCanvas {
+  flex: auto;
+}
