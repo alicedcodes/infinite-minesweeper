@@ -31,6 +31,7 @@ export const CONSTANTS = {
   MAX_ZOOM: 2,
   LOW_DETAIL_THRESHOLD: 1 / 8,
   ZOOM_SENSITIVITY: 0.0005,
+  LONG_PRESS_DURATION: 350,
 
   FONT_FAMILY: '"Noto Emoji", system-ui, -apple-system, sans-serif',
   COLOURS: {

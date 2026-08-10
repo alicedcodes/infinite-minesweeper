@@ -200,14 +200,18 @@ export const Canvas = {
     canvas = canvas_;
     ctx = canvas.getContext("2d")!;
 
-    let mouseDown = false;
+    let pointerDown = false;
     let isDragging = false;
     let startX = 0;
     let startY = 0;
     let dragStartX = 0;
     let dragStartY = 0;
 
+    const activePointers: PointerEvent[] = [];
+    let prevTouchDistance = -1;
+
     canvas.style.cursor = "default";
+    canvas.style.touchAction = "none";
 
     const observer = new ResizeObserver(() => {
       canvas.width = canvas.clientWidth;
@@ -216,73 +220,121 @@ export const Canvas = {
     });
     observer.observe(canvas);
 
+    const executeZoom = (zoomChange: number, clientX: number, clientY: number): void => {
+      const zoom = State.zoom;
+      const newZoom = clamp(zoom + zoomChange, CONSTANTS.MIN_ZOOM, CONSTANTS.MAX_ZOOM);
+
+      if (newZoom === zoom) return;
+
+      const [cx, cy] = State.viewPoint;
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = clientX - rect.left - canvas.width / 2;
+      const canvasY = clientY - rect.top - canvas.height / 2;
+
+      State.viewPoint = [canvasX - ((canvasX - cx) * newZoom) / zoom, canvasY - ((canvasY - cy) * newZoom) / zoom];
+      State.zoom = newZoom;
+
+      const [row, col] = getCanvasTile(clientX, clientY, ...State.viewPoint, newZoom);
+      const renderDetails = newZoom > CONSTANTS.LOW_DETAIL_THRESHOLD;
+      canvas.style.cursor = getIsInteractable(row, col, true) && renderDetails ? "pointer" : "default";
+
+      Canvas.requestDraw();
+    };
+
     canvas.addEventListener(
       "wheel",
       (e) => {
         e.preventDefault();
-
-        const zoom = State.zoom;
         const zoomChange = -e.deltaY * CONSTANTS.ZOOM_SENSITIVITY;
-        const newZoom = clamp(zoom + zoomChange, CONSTANTS.MIN_ZOOM, CONSTANTS.MAX_ZOOM);
-
-        if (newZoom === zoom) return;
-
-        const [cx, cy] = State.viewPoint;
-        const rect = canvas.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left - canvas.width / 2;
-        const canvasY = e.clientY - rect.top - canvas.height / 2;
-
-        State.viewPoint = [canvasX - ((canvasX - cx) * newZoom) / zoom, canvasY - ((canvasY - cy) * newZoom) / zoom];
-        State.zoom = newZoom;
-
-        const [row, col] = getCanvasTile(e.clientX, e.clientY, ...State.viewPoint, newZoom);
-        const renderDetails = newZoom > CONSTANTS.LOW_DETAIL_THRESHOLD;
-        canvas.style.cursor = getIsInteractable(row, col, true) && renderDetails ? "pointer" : "default";
-
-        Canvas.requestDraw();
+        executeZoom(zoomChange, e.clientX, e.clientY);
       },
       { passive: false },
     );
 
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    canvas.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 && e.button !== 2) return;
+    canvas.addEventListener("pointerdown", (e) => {
+      activePointers.push(e);
 
-      const [camX, camY] = State.viewPoint;
+      if (activePointers.length === 2) {
+        pointerDown = false;
+        isDragging = false;
+        const p1 = activePointers[0]!;
+        const p2 = activePointers[1]!;
+        prevTouchDistance = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+        return;
+      }
 
-      mouseDown = true;
-      isDragging = false;
-      startX = e.clientX;
-      startY = e.clientY;
-      dragStartX = e.clientX - camX;
-      dragStartY = e.clientY - camY;
+      if (activePointers.length === 1) {
+        if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
+
+        const [camX, camY] = State.viewPoint;
+        pointerDown = true;
+        isDragging = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        dragStartX = e.clientX - camX;
+        dragStartY = e.clientY - camY;
+      }
     });
 
-    window.addEventListener("mousemove", (e) => {
-      if (!mouseDown) {
-        const zoom = State.zoom;
-        const [row, col] = getCanvasTile(e.clientX, e.clientY, ...State.viewPoint, zoom);
-        const renderDetails = zoom > CONSTANTS.LOW_DETAIL_THRESHOLD;
-        canvas.style.cursor = getIsInteractable(row, col, true) && renderDetails ? "pointer" : "default";
-      } else {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+    window.addEventListener("pointermove", (e) => {
+      const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
+      if (index !== -1) activePointers[index] = e;
 
-        if (!isDragging) {
-          if (dx * dx + dy * dy >= CONSTANTS.DRAG_THRESHOLD * CONSTANTS.DRAG_THRESHOLD) {
-            isDragging = true;
-          }
+      if (activePointers.length === 2) {
+        const p1 = activePointers[0]!;
+        const p2 = activePointers[1]!;
+
+        const currentDistance = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+
+        if (prevTouchDistance > 0) {
+          const deltaDistance = currentDistance - prevTouchDistance;
+          const zoomChange = deltaDistance * CONSTANTS.ZOOM_SENSITIVITY * 5;
+
+          const centerX = (p1.clientX + p2.clientX) / 2;
+          const centerY = (p1.clientY + p2.clientY) / 2;
+
+          executeZoom(zoomChange, centerX, centerY);
+        }
+        prevTouchDistance = currentDistance;
+        return;
+      }
+
+      if (activePointers.length <= 1) {
+        if (!pointerDown) {
+          const zoom = State.zoom;
+          const [row, col] = getCanvasTile(e.clientX, e.clientY, ...State.viewPoint, zoom);
+          const renderDetails = zoom > CONSTANTS.LOW_DETAIL_THRESHOLD;
+          canvas.style.cursor = getIsInteractable(row, col, true) && renderDetails ? "pointer" : "default";
         } else {
-          State.viewPoint = [e.clientX - dragStartX, e.clientY - dragStartY];
-          canvas.style.cursor = "grabbing";
-          Canvas.requestDraw();
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+
+          if (!isDragging) {
+            if (dx * dx + dy * dy >= CONSTANTS.DRAG_THRESHOLD * CONSTANTS.DRAG_THRESHOLD) {
+              isDragging = true;
+            }
+          } else {
+            State.viewPoint = [e.clientX - dragStartX, e.clientY - dragStartY];
+            canvas.style.cursor = "grabbing";
+            Canvas.requestDraw();
+          }
         }
       }
     });
 
-    window.addEventListener("mouseup", (e) => {
-      mouseDown = false;
+    const handlePointerUpOrCancel = (e: PointerEvent): void => {
+      const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
+      if (index !== -1) activePointers.splice(index, 1);
+
+      if (activePointers.length < 2) {
+        prevTouchDistance = -1;
+      }
+
+      if (!pointerDown || activePointers.length > 0) return;
+
+      pointerDown = false;
 
       const zoom = State.zoom;
       const [row, col] = getCanvasTile(e.clientX, e.clientY, ...State.viewPoint, zoom);
@@ -293,13 +345,16 @@ export const Canvas = {
         const renderDetails = zoom > CONSTANTS.LOW_DETAIL_THRESHOLD;
         canvas.style.cursor = getIsInteractable(row, col, true) && renderDetails ? "pointer" : "default";
       } else if (isInteractable && zoom > CONSTANTS.LOW_DETAIL_THRESHOLD) {
-        if (e.button === 0 || (row === 0 && col === 0)) {
-          Logic.revealTile(row, col).catch(console.error);
-        } else {
+        if ((e.button === 2 || e.pointerType === "touch") && !(row === 0 && col === 0)) {
           Logic.flagTile(row, col).catch(console.error);
+        } else if (e.button === 0 || (row === 0 && col === 0)) {
+          Logic.revealTile(row, col).catch(console.error);
         }
       }
-    });
+    };
+
+    window.addEventListener("pointerup", handlePointerUpOrCancel);
+    window.addEventListener("pointercancel", handlePointerUpOrCancel); // Critical for lost inputs
   },
 
   requestDraw(): void {
