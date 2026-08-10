@@ -37,7 +37,7 @@ export const CONSTANTS = {
     BG: oklch(0, 0, 0, 0.2),
     BG_FLAG: oklch(0.9, 0.3, 75),
     BG_MINE: oklch(0.9, 0.3, 30),
-    BG_0: oklch(0.95, 0, 0),
+    // BG_0: oklch(0.95, 0, 0),
     BG_0: oklch(0.95, 0.025, 90),
     BG_1: oklch(0.95, 0.025, 90),
     BG_2: oklch(0.95, 0.025, 150),
