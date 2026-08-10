@@ -1,7 +1,9 @@
 {
-  "name": "infinite-sweeper",
+  "name": "infinite-minesweeper",
   "version": "0.0.0",
   "private": true,
+  "homepage": "https://alicedcodes.github.io/infinite-minesweeper",
+  "license": "MIT",
   "author": "Alice Driscoll <alicedcodes@gmail.com>",
   "repository": {
     "type": "git",
@@ -9,23 +11,31 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
     "build": "tsc && vp build",
-    "preview": "vp preview",
-    "prepare": "vp config"
+    "create-icons": "node bin/create-icons",
+    "dev": "vp dev",
+    "format": "vp fmt",
+    "lint": "vp lint",
+    "lint:fix": "vp lint --fix",
+    "prepare": "vp config",
+    "preview": "vp preview"
   },
   "dependencies": {
     "modern-normalize": "^3.0.1"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
+    "favicons": "^7.3.1",
     "typescript": "~6.0.2",
     "vite": "catalog:",
+    "vite-plugin-pwa": "^1.3.0",
+    "vite-plugin-webfont-dl": "^3.12.0",
     "vite-plus": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.17.0",
+      "version": "11.20.0",
       "onFail": "download"
     }
   }

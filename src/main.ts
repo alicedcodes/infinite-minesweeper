@@ -1,7 +1,5 @@
-import { IMS } from "./game";
+import "modern-normalize/modern-normalize.css";
+import "./style.css";
+import "./ims";
 
-void IMS.init();
-
-// import { FMS } from "./n-game";
-
-// new FMS("fmsCanvas");
+await window.IMS.init();

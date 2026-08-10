@@ -1,45 +1,79 @@
 :root {
-  --c-background: hsl(0 0% 10%);
-  --c-menu: hsl(0 0% 20%);
+  --colour-background: oklch(0.96 0 0);
+  --colour-menu: oklch(0.6 0 0 / 0.5);
 
-  --c-text: hsl(0 0% 100%);
+  --colour-text: black;
 
-  --c-border: hsl(0 0% 100%);
+  --colour-border: oklch(0.6 0 0);
+  --colour-shadow: oklch(0 0 0 / 0.1);
 
-  background-color: var(--c-background);
-  color: var(--c-text);
+  --font-sans: "Noto Emoji", system-ui, -apple-system, sans-serif;
+
+  background-color: var(--colour-background);
+  font-family: var(--font-sans);
+  color: var(--colour-text);
   color-scheme: light;
-  font-family: "Noto Emoji", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --colour-background: oklch(0.36 0 0);
+    --colour-menu: oklch(0.6 0 0 / 0.5);
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  min-height: 0;
+  min-width: 0;
 }
 
 html {
   height: 100%;
-  display: flex;
 }
 
 body {
-  flex: auto;
-  display: flex;
+  height: 100%;
+  overflow: hidden;
 }
 
-#app {
-  flex: auto;
+.menu {
+  position: absolute;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  background-color: var(--colour-menu);
+  border: 1px solid var(--colour-border);
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 2px var(--colour-shadow);
+  user-select: none;
   display: flex;
   flex-direction: column;
+  width: 8rem;
+
+  > div {
+    display: flex;
+    gap: inherit;
+
+    > * {
+      flex: 1;
+    }
+  }
 }
 
-#controls {
-  display: flex;
-  background-color: var(--c-menu);
-  box-shadow: 0 2px 2px hsl(0 0% 0% / 0.2);
-  z-index: 1;
-  align-items: center;
+#menu-right {
+  top: 0.5rem;
+  right: 0.5rem;
 }
 
-#tip {
-  flex: auto;
+#IMS {
+  width: 100%;
+  height: 100%;
 }
 
-#fmsCanvas {
-  flex: auto;
+button {
+  padding: 0 0.25rem;
+}
+button:not(:disabled) {
+  cursor: pointer;
 }
