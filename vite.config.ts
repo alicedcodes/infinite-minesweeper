@@ -1,5 +1,4 @@
 import { VitePWA } from "vite-plugin-pwa";
-import webfontDl from "vite-plugin-webfont-dl";
 import { defineConfig, loadEnv } from "vite-plus";
 
 export default defineConfig(({ mode }) => {
@@ -8,6 +7,22 @@ export default defineConfig(({ mode }) => {
   const port = 64637; /* MINES */
 
   return {
+    staged: {
+      "*": "vp check --fix",
+    },
+    fmt: {
+      sortImports: { newlinesBetween: false },
+      sortPackageJson: { sortScripts: true },
+    },
+    lint: {
+      jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+      rules: {
+        "vite-plus/prefer-vite-plus-imports": "error",
+        "typescript/explicit-member-accessibility": "error",
+        "class-methods-use-this": "error",
+      },
+      options: { typeAware: true, typeCheck: true },
+    },
     base,
     server: {
       port,
@@ -17,7 +32,6 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      webfontDl(),
       VitePWA({
         registerType: "autoUpdate",
         injectRegister: "inline",
@@ -44,24 +58,5 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    staged: {
-      "*": "vp check --fix",
-    },
-    fmt: {
-      sortPackageJson: { sortScripts: true },
-      sortImports: { newlinesBetween: false },
-      sortTailwindcss: true,
-      jsdoc: true,
-      printWidth: 120,
-    },
-    lint: {
-      jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-      rules: {
-        "vite-plus/prefer-vite-plus-imports": "error",
-        "typescript/no-import-type-side-effects": "error",
-        "typescript/explicit-function-return-type": "error",
-      },
-      options: { typeAware: true, typeCheck: true },
-    },
   };
 });

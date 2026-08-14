@@ -1,5 +1,5 @@
 {
-  "name": "infinite-minesweeper",
+  "name": "minesweeper",
   "version": "0.0.0",
   "private": true,
   "homepage": "https://alicedcodes.github.io/infinite-minesweeper",
@@ -12,30 +12,30 @@
   "type": "module",
   "scripts": {
     "build": "tsc && vp build",
-    "create-icons": "node bin/create-icons",
+    "create-icons": "node bin/create-icons.js",
     "dev": "vp dev",
-    "format": "vp fmt",
+    "dev:host": "vp dev --host",
+    "format": "vp format",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "prepare": "vp config",
     "preview": "vp preview"
   },
   "dependencies": {
-    "modern-normalize": "^3.0.1"
+    "@fontsource-variable/noto-emoji": "^5.3.0"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "favicons": "^7.3.1",
     "typescript": "~6.0.2",
     "vite": "catalog:",
     "vite-plugin-pwa": "^1.3.0",
-    "vite-plugin-webfont-dl": "^3.12.0",
     "vite-plus": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.20.0",
+      "version": "11.21.0",
       "onFail": "download"
     }
   }

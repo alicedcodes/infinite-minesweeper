@@ -1,5 +1,3 @@
-import "modern-normalize/modern-normalize.css";
+import "@fontsource-variable/noto-emoji";
 import "./style.css";
-import "./ims";
-
-await window.IMS.init();
+import "./infinite-minesweeper";
