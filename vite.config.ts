@@ -1,5 +1,5 @@
-import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig, loadEnv } from "vite-plus";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
@@ -7,22 +7,6 @@ export default defineConfig(({ mode }) => {
   const port = 64637; /* MINES */
 
   return {
-    staged: {
-      "*": "vp check --fix",
-    },
-    fmt: {
-      sortImports: { newlinesBetween: false },
-      sortPackageJson: { sortScripts: true },
-    },
-    lint: {
-      jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-      rules: {
-        "vite-plus/prefer-vite-plus-imports": "error",
-        "typescript/explicit-member-accessibility": "error",
-        "class-methods-use-this": "error",
-      },
-      options: { typeAware: true, typeCheck: true },
-    },
     base,
     server: {
       port,
@@ -58,5 +42,15 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    staged: { "*": "vp check --fix" },
+    fmt: { sortPackageJson: { sortScripts: true } },
+    lint: {
+      jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+      rules: {
+        "vite-plus/prefer-vite-plus-imports": "error",
+        "typescript/explicit-function-return-type": ["error", { allowExpressions: true }],
+      },
+      options: { typeAware: true, typeCheck: true },
+    },
   };
 });
