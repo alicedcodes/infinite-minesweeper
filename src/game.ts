@@ -187,26 +187,45 @@ type MineCount = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 type ThemeData = {
   name: string;
-} & Record<"BORDER" | "BG" | "BG_I" | "TX" | `${"BG" | "TX"}_${MineCount}`, string>;
+  BORDER_RADIUS: number;
+  BORDER_WIDTH: number;
+} & Record<
+  | "BG"
+  | "TILE"
+  | "TILE_I"
+  | "TILE_M"
+  | "TILE_F"
+  | "TX"
+  | "TX_M"
+  | "TX_F"
+  | `${"TILE" | "TX"}_${MineCount}`,
+  string
+>;
 
 type ColorSource = string | ((n: number) => string);
 
 type ThemeConfig = {
   name: string;
+  TILE: string;
+  TILE_I: string;
+  TILE_N: ColorSource;
+  TILE_M: string;
+  TILE_F: string;
   BG: string;
-  BG_I: string;
-  BG_N: ColorSource;
-  BORDER: string;
+  BORDER_RADIUS: number;
+  BORDER_WIDTH: number;
   TX: string;
   TX_N: ColorSource;
+  TX_M: string;
+  TX_F: string;
 };
 
 const calcTheme = /* @__PURE__ */ (tc: ThemeConfig): ThemeData => {
   const mineCounts = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-  const bgEntries = mineCounts.map((n) => [
-    `BG_${n}`,
-    typeof tc.BG_N === "function" ? tc.BG_N(n) : tc.BG_N,
+  const tileEntries = mineCounts.map((n) => [
+    `TILE_${n}`,
+    typeof tc.TILE_N === "function" ? tc.TILE_N(n) : tc.TILE_N,
   ]);
 
   const txEntries = mineCounts.map((n) => [
@@ -216,11 +235,17 @@ const calcTheme = /* @__PURE__ */ (tc: ThemeConfig): ThemeData => {
 
   return Object.fromEntries([
     ["name", tc.name],
+    ["TILE", tc.TILE],
+    ["TILE_I", tc.TILE_I],
+    ["TILE_M", tc.TILE_M],
+    ["TILE_F", tc.TILE_F],
     ["BG", tc.BG],
-    ["BG_I", tc.BG_I],
-    ["BORDER", tc.BORDER],
+    ["BORDER_RADIUS", tc.BORDER_RADIUS],
+    ["BORDER_WIDTH", tc.BORDER_WIDTH],
     ["TX", tc.TX],
-    ...bgEntries,
+    ["TX_M", tc.TX_M],
+    ["TX_F", tc.TX_F],
+    ...tileEntries,
     ...txEntries,
   ]) as ThemeData;
 };
@@ -228,66 +253,80 @@ const calcTheme = /* @__PURE__ */ (tc: ThemeConfig): ThemeData => {
 const THEME_DATA: ThemeData[] = [
   calcTheme({
     name: "Colourful",
-    BG: "oklch(0.3 0 0)",
-    BG_I: "oklch(0.3 0 0 / 0.15)",
-    BG_N: (n) => `oklch(0.8 0.35 ${((360 / 8) * Math.max(1, n)) % 360})`,
-    BORDER: "oklch(0.2 0 0)",
+    TILE: "oklch(0.3 0 0)",
+    TILE_I: "oklch(0.3 0 0 / 0.15)",
+    TILE_N: (n) => `oklch(0.8 0.35 ${((360 / 8) * Math.max(1, n)) % 360})`,
+    TILE_M: "oklch(0.9 0 0)",
+    TILE_F: "oklch(0.9 0 0)",
+    BG: "oklch(0.2 0 0)",
+    BORDER_RADIUS: 8,
+    BORDER_WIDTH: 4,
     TX: "oklch(1 0 0)",
     TX_N: "oklch(0 0 0)",
+    TX_M: "oklch(0 0 0)",
+    TX_F: "oklch(0 0 0)",
   }),
   calcTheme({
     name: "Night",
-    BG: "oklch(0.3 0 0)",
-    BG_I: "oklch(0.3 0 0 / 0.15)",
-    BG_N: "oklch(0.2 0 0)",
-    BORDER: "oklch(0.2 0 0)",
+    TILE: "oklch(0.3 0 0)",
+    TILE_I: "oklch(0.3 0 0 / 0.15)",
+    TILE_N: "oklch(0.2 0 0)",
+    TILE_M: "oklch(0.7 0.35 90)",
+    TILE_F: "oklch(0.7 0.35 90)",
+    BG: "oklch(0.2 0 0)",
+    BORDER_RADIUS: 8,
+    BORDER_WIDTH: 4,
     TX: "oklch(1 0 0)",
     TX_N: (n) => `oklch(0.8 0.35 ${((360 / 8) * Math.max(1, n)) % 360})`,
+    TX_M: "oklch(0 0 0)",
+    TX_F: "oklch(0 0 0)",
   }),
   calcTheme({
     name: "Black",
-    BG: "oklch(0.3 0 0)",
-    BG_I: "oklch(0 0 0 / 0)",
-    BG_N: "oklch(0 0 0)",
-    BORDER: "oklch(0 0 0)",
+    TILE: "oklch(0.3 0 0)",
+    TILE_I: "oklch(0 0 0 / 0)",
+    TILE_N: "oklch(0 0 0)",
+    TILE_M: "oklch(1 0 0)",
+    TILE_F: "oklch(1 0 0)",
+    BG: "oklch(0 0 0)",
+    BORDER_RADIUS: 8,
+    BORDER_WIDTH: 4,
     TX: "oklch(1 0 0)",
     TX_N: "oklch(1 0 0)",
+    TX_M: "oklch(0 0 0)",
+    TX_F: "oklch(0 0 0)",
   }),
   calcTheme({
     name: "Light",
-    BG: "oklch(0.8 0 0)",
-    BG_I: "oklch(0 0 0 / 0)",
-    BG_N: "oklch(1 0 0)",
-    BORDER: "oklch(1 0 0)",
+    TILE: "oklch(0.8 0 0)",
+    TILE_I: "oklch(0 0 0 / 0)",
+    TILE_N: "oklch(0.95 0 0)",
+    TILE_M: "oklch(0.6 0 0)",
+    TILE_F: "oklch(0.6 0 0)",
+    BG: "oklch(0.6 0 0)",
+    BORDER_RADIUS: 0,
+    BORDER_WIDTH: 1,
     TX: "oklch(0 0 0)",
     TX_N: (n) => `oklch(0.8 0.35 ${((360 / 8) * Math.max(1, n)) % 360})`,
-  }),
-  calcTheme({
-    name: "White",
-    BG: "oklch(0.8 0 0)",
-    BG_I: "oklch(0 0 0 / 0)",
-    BG_N: "oklch(1 0 0)",
-    BORDER: "oklch(1 0 0)",
-    TX: "oklch(0 0 0)",
-    TX_N: "oklch(0 0 0)",
+    TX_M: "oklch(1 0 0)",
+    TX_F: "oklch(1 0 0)",
   }),
 ];
 
 //
 
 const TILE_SIZE = 100;
-const BORDER_WIDTH = 4;
-const BORDER_RADIUS = 8;
-const FONT_SIZE = 48;
+const FONT_SIZE = 64;
 const FONT_FAMILY = 'Arial, Helvetica, sans-serif, "Noto Emoji Variable"';
 
 const MIN_ZOOM = 1 / 16;
 const MAX_ZOOM = 2;
+const LOW_DETAIL_THRESHOLD = 1 / 8;
 const WHEEL_ZOOM_SPEED = 0.001;
 const PAN_THRESHOLD = 10;
 const LONG_PRESS_DURATION = 350;
 
-const ANIMATION_DELAY = 20;
+const ANIMATION_DELAY = 50;
 const ANIMATION_DURATION = 150;
 
 let canvas: HTMLCanvasElement;
@@ -355,9 +394,11 @@ function doDraw(now: number): void {
   ctx.save();
 
   const ts = TILE_SIZE * zoom;
-  const bw = BORDER_WIDTH * zoom;
-  const br = BORDER_RADIUS * zoom;
   const t = THEME_DATA[theme] ?? THEME_DATA[0]!;
+  const bw = t.BORDER_WIDTH * zoom;
+  const br = t.BORDER_RADIUS * zoom;
+
+  const renderDetails = zoom > LOW_DETAIL_THRESHOLD;
 
   const centreX = -camX / ts;
   const centreY = -camY / ts;
@@ -379,7 +420,7 @@ function doDraw(now: number): void {
       const state = getState(row, col);
       const { nearbyMines, isInteractable } = getMeta(row, col);
 
-      let bgColour = isInteractable ? t.BG : t.BG_I;
+      let bgColour = isInteractable ? t.TILE : t.TILE_I;
       let txColour = t.TX;
       let text: string | null = null;
       let textSize = 1;
@@ -393,10 +434,11 @@ function doDraw(now: number): void {
         },
         [TILE_SHOW]: () => {
           if (mine) {
+            bgColour = t.TILE_M;
+            txColour = t.TX_M;
             text = "💥";
-            textSize = 1.5;
           } else {
-            bgColour = t[`BG_${nearbyMines as MineCount}`];
+            bgColour = t[`TILE_${nearbyMines as MineCount}`];
             if (nearbyMines > 0) {
               txColour = t[`TX_${nearbyMines as MineCount}`];
               text = String(nearbyMines);
@@ -404,12 +446,11 @@ function doDraw(now: number): void {
           }
         },
         [TILE_FLAG]: () => {
+          bgColour = t.TILE_F;
+          txColour = t.TX_F;
           text = "🚩";
-          textSize = 1.5;
         },
       })[state]();
-
-      if (!isInteractable) bgColour = t.BG_I;
 
       let scale = 1;
       const start = animMap.get(calcTileKey(row, col));
@@ -423,11 +464,11 @@ function doDraw(now: number): void {
       const ly = -h / 2;
 
       ctx.save();
-      ctx.fillStyle = t.BORDER;
+      ctx.fillStyle = t.BG;
       ctx.fillRect(x, y, w, h);
 
       if (scale < 1) {
-        ctx.fillStyle = t.BG;
+        ctx.fillStyle = t.TILE;
         ctx.beginPath();
         ctx.roundRect(x + bw, y + bw, w - bw * 2, h - bw * 2, br);
         ctx.fill();
@@ -439,16 +480,21 @@ function doDraw(now: number): void {
       ctx.scale(scale, scale);
 
       ctx.fillStyle = bgColour;
-      ctx.beginPath();
-      ctx.roundRect(lx + bw, ly + bw, w - bw * 2, h - bw * 2, br);
-      ctx.fill();
 
-      if (text) {
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `bold ${FONT_SIZE * textSize * zoom}px ${FONT_FAMILY}`;
-        ctx.fillStyle = txColour;
-        ctx.fillText(text, 0, 3 * zoom);
+      if (renderDetails) {
+        ctx.beginPath();
+        ctx.roundRect(lx + bw, ly + bw, w - bw * 2, h - bw * 2, br);
+        ctx.fill();
+
+        if (text) {
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `bold ${FONT_SIZE * textSize * zoom}px ${FONT_FAMILY}`;
+          ctx.fillStyle = txColour;
+          ctx.fillText(text, 0, 3 * zoom);
+        }
+      } else {
+        ctx.fillRect(lx, ly, w, h);
       }
 
       ctx.restore();
@@ -473,9 +519,9 @@ const DB_NAME = "Infinite Minesweeper";
 const DB_VERSION = 1;
 const DB_STORE = "tileStore";
 
-const CAMERA_KEY = "cam";
-const ZOOM_KEY = "zoom";
-const THEME_KEY = "theme";
+const CAMERA_KEY = "ims:cam";
+const ZOOM_KEY = "ims:zoom";
+const THEME_KEY = "ims:theme";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -594,6 +640,8 @@ await load();
   }
 
   function doClick(e: PointerEvent): void {
+    if (!(zoom > LOW_DETAIL_THRESHOLD)) return;
+
     const [row, col] = calcScreenToTile(e.clientX, e.clientY);
     const { isInteractable: interactable } = getMeta(row, col);
     if (!interactable) return;
