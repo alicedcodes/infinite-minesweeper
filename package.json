@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
     "build": "tsc && vp build",
-    "preview": "vp preview",
-    "prepare": "vp config"
+    "dev": "vp dev",
+    "prepare": "vp config",
+    "preview": "vp preview"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
