@@ -6,6 +6,8 @@
   "scripts": {
     "build": "tsc && vp build",
     "dev": "vp dev",
+    "format": "vp format",
+    "lint": "vp lint",
     "prepare": "vp config",
     "preview": "vp preview"
   },
