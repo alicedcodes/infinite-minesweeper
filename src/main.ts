@@ -1,4 +1,19 @@
 import "./style.css";
+import {
+  TARGET_SCREEN_PX,
+  BASE_CHUNK_WORLD,
+  MIN_LEVEL,
+  MAX_LEVEL,
+  BITMAP_RES,
+  TILE_WORLD_SIZE,
+  MAX_CACHED_CHUNKS,
+  VIEWPORT_PADDING_CHUNKS,
+  SWEEPER_INTERVAL_MS,
+  PAN_THRESHOLD,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  WHEEL_ZOOM_SPEED,
+} from "./constants";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
@@ -13,16 +28,6 @@ let dirty = true;
 let zoom = 1;
 let camX = 0;
 let camY = 0;
-
-const TILE_WORLD_SIZE = 100;
-const BASE_CHUNK_TILES = 16;
-const BASE_CHUNK_WORLD = TILE_WORLD_SIZE * BASE_CHUNK_TILES;
-
-const BITMAP_RES = 512;
-const TARGET_SCREEN_PX = 384;
-
-const MIN_LEVEL = -Math.log2(BASE_CHUNK_TILES);
-const MAX_LEVEL = 12;
 
 function pickLevel(): number {
   const raw = Math.log2(TARGET_SCREEN_PX / (BASE_CHUNK_WORLD * zoom));
@@ -88,10 +93,6 @@ interface ChunkEntry {
   cy: number;
   bitmap: ImageBitmap;
 }
-
-const MAX_CACHED_CHUNKS = 320;
-const VIEWPORT_PADDING_CHUNKS = 2;
-const SWEEPER_INTERVAL_MS = 3000;
 
 const chunkCache = new Map<ChunkKey, ChunkEntry>();
 let lastSweep = 0;
@@ -209,12 +210,6 @@ const observer = new ResizeObserver((entries) => {
   dirty = true;
 });
 observer.observe(canvas);
-
-const MIN_ZOOM = 0.0625;
-const MAX_ZOOM = 2;
-
-const PAN_THRESHOLD = 10;
-const WHEEL_ZOOM_SPEED = 0.001;
 
 const activePointers: PointerEvent[] = [];
 let panning = false;
