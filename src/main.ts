@@ -60,7 +60,7 @@ function renderChunk(level: number): ImageBitmap {
   const px = BITMAP_RES / tilesPerSize;
   const drawDetails = px >= 16;
 
-  const borderWidth = Math.max(1, Math.round(px / 12));
+  const borderWidth = Math.max(1, Math.round(px / 24));
   const borderRadius = Math.max(1, Math.round(px / 12));
 
   scratchCtx.fillStyle = "#000";
@@ -80,8 +80,8 @@ function renderChunk(level: number): ImageBitmap {
         scratchCtx.roundRect(
           px0 + borderWidth,
           py0 + borderWidth,
-          px1 - px0 - borderWidth,
-          py1 - py0 - borderWidth,
+          px1 - px0 - borderWidth * 2,
+          py1 - py0 - borderWidth * 2,
           borderRadius,
         );
         scratchCtx.fill();
@@ -252,6 +252,21 @@ function tick(): void {
   function handlePointerUp(e: PointerEvent): void {
     const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
     if (index !== -1) activePointers.splice(index, 1);
+
+    if (!panning) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseScreenX = e.clientX - rect.left;
+      const mouseScreenY = e.clientY - rect.top;
+
+      const worldX = camX + (mouseScreenX - canvasWidth / 2) / zoom;
+      const worldY = camY + (mouseScreenY - canvasHeight / 2) / zoom;
+
+      const x = Math.floor(worldX / TILE_WORLD_SIZE);
+      const y = Math.floor(worldY / TILE_WORLD_SIZE);
+
+      console.log(`${x},${y}`);
+    }
+
     panning = false;
     canvas.style.cursor = "default";
   }
