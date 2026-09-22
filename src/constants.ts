@@ -1,3 +1,7 @@
+export const TILE_HIDDEN = 0;
+export const TILE_REVEALED = 1;
+export const TILE_FLAGGED = 2;
+
 export const SAFE_RADIUS = 2;
 
 export const TILE_WORLD_SIZE = 100;
@@ -6,6 +10,11 @@ export const BASE_CHUNK_WORLD = TILE_WORLD_SIZE * BASE_CHUNK_TILES;
 
 export const BITMAP_RES = 512;
 export const TARGET_SCREEN_PX = 384;
+
+export const DRAW_DETAILS_START = 24;
+
+export const BORDER_WIDTH_FRACTION = 24;
+export const BORDER_RADIUS_FRACTION = 12;
 
 export const MIN_LEVEL = -Math.log2(BASE_CHUNK_TILES);
 export const MAX_LEVEL = 12;

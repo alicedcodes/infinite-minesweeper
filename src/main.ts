@@ -15,7 +15,15 @@ import {
   WHEEL_ZOOM_SPEED,
   SAFE_RADIUS,
   TOUCHPAD_ZOOM_SPEED,
+  TILE_FLAGGED,
+  TILE_HIDDEN,
+  TILE_REVEALED,
+  DRAW_DETAILS_START,
+  BORDER_RADIUS_FRACTION,
+  BORDER_WIDTH_FRACTION,
 } from "./constants";
+
+type TileState = 0 | 1 | 2;
 
 type ChunkKey = `${number}:${number}:${number}`;
 
@@ -35,10 +43,26 @@ function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
 
+const tileStates = new Map<number, TileState>();
 let seed = randomSeed();
 let mineDensity = 0.2;
-let startX: number = 0;
-let startY: number = 0;
+let started = false;
+let startX = 0;
+let startY = 0;
+
+function packTileKey(x: number, y: number): number {
+  return ((x & 0xffff) << 16) | (y & 0xffff);
+}
+
+function getTile(x: number, y: number): TileState {
+  return tileStates.get(packTileKey(x, y)) ?? TILE_HIDDEN;
+}
+
+function setTile(x: number, y: number, state: TileState): void {
+  const key = packTileKey(x, y);
+  if (state === TILE_HIDDEN) tileStates.delete(key);
+  else tileStates.set(key, state);
+}
 
 function hash2D(x: number, y: number): number {
   let h = seed ^ Math.imul(y, 73856093) ^ Math.imul(x, 19349663);
@@ -48,7 +72,8 @@ function hash2D(x: number, y: number): number {
 }
 
 function hasMine(x: number, y: number): boolean {
-  if (Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS) return false;
+  if (started && Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS)
+    return false;
   return hash2D(x, y) < mineDensity * 4294967296;
 }
 
@@ -85,9 +110,9 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
   const baseTileY = Math.floor((cy * worldSize) / TILE_WORLD_SIZE);
 
   const px = BITMAP_RES / tilesPerSize;
-  const drawDetails = px >= 16;
-  const borderWidth = Math.max(1, Math.round(px / 24));
-  const borderRadius = Math.max(1, Math.round(px / 12));
+  const drawDetails = px >= DRAW_DETAILS_START;
+  const borderWidth = Math.max(1, Math.round(px / BORDER_WIDTH_FRACTION));
+  const borderRadius = Math.max(1, Math.round(px / BORDER_RADIUS_FRACTION));
 
   scratchCtx.fillStyle = "#000";
   scratchCtx.fillRect(0, 0, BITMAP_RES, BITMAP_RES);
@@ -102,9 +127,13 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
       const px0 = Math.round(lx * px);
       const px1 = Math.round((lx + 1) * px);
 
-      const mine = hasMine(x, y);
+      const state = getTile(x, y);
+      const mine = state === TILE_REVEALED && hasMine(x, y);
 
-      scratchCtx.fillStyle = mine ? "#803030" : "#303030";
+      if (state === TILE_HIDDEN) scratchCtx.fillStyle = "#303030";
+      else if (state === TILE_FLAGGED) scratchCtx.fillStyle = "#306030";
+      else scratchCtx.fillStyle = mine ? "#803030" : "#505050";
+
       if (drawDetails) {
         scratchCtx.beginPath();
         scratchCtx.roundRect(
@@ -115,6 +144,14 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
           borderRadius,
         );
         scratchCtx.fill();
+
+        const icon = state === TILE_FLAGGED ? "🚩" : mine ? "💥" : null;
+        if (icon) {
+          scratchCtx.font = `${Math.round(px * 0.55)}px sans-serif`;
+          scratchCtx.textAlign = "center";
+          scratchCtx.textBaseline = "middle";
+          scratchCtx.fillText(icon, px0 + px / 2, py0 + px / 2);
+        }
       } else {
         scratchCtx.fillRect(px0, py0, px1 - px0, py1 - py0);
       }
@@ -151,6 +188,24 @@ function getChunk(level: number, cx: number, cy: number): ImageBitmap {
   const bitmap = renderChunk(level, cx, cy);
   chunkCache.set(key, { level, cx, cy, bitmap });
   return bitmap;
+}
+
+function invalidateTile(x: number, y: number): void {
+  for (const key of Array.from(chunkCache.keys())) {
+    const entry = chunkCache.get(key);
+    if (!entry) continue;
+
+    const worldSize = chunkWorldSize(entry.level);
+    const tileSpan = worldSize / TILE_WORLD_SIZE;
+    const baseTileX = Math.floor((entry.cx * worldSize) / TILE_WORLD_SIZE);
+    const baseTileY = Math.floor((entry.cy * worldSize) / TILE_WORLD_SIZE);
+
+    const lx = x - baseTileX;
+    const ly = y - baseTileY;
+    if (lx >= 0 && lx < tileSpan && ly >= 0 && ly < tileSpan) {
+      disposeChunk(key);
+    }
+  }
 }
 
 function computeChunkRange(padding = 0): {
@@ -201,8 +256,8 @@ function draw(): void {
   for (let cy = range.startCY; cy < range.endCY; cy++) {
     const screenY = Math.round((cy * worldSize - worldTop) * zoom);
     for (let cx = range.startCX; cx < range.endCX; cx++) {
-      const bitmap = getChunk(range.level, cx, cy);
       const screenX = Math.round((cx * worldSize - worldLeft) * zoom);
+      const bitmap = getChunk(range.level, cx, cy);
       const size = Math.ceil(worldSize * zoom);
       ctx.drawImage(bitmap, screenX, screenY, size, size);
     }
@@ -223,6 +278,29 @@ function tick(): void {
   }
 
   requestAnimationFrame(tick);
+}
+
+function handleTileClick(x: number, y: number, reveal: boolean): void {
+  if (BITMAP_RES / (chunkWorldSize(pickLevel()) / TILE_WORLD_SIZE) < DRAW_DETAILS_START) return;
+
+  const state = getTile(x, y);
+
+  if (reveal) {
+    if (state !== TILE_HIDDEN) return;
+    if (!started) {
+      started = true;
+      startX = x;
+      startY = y;
+    }
+    setTile(x, y, TILE_REVEALED);
+  } else if (started) {
+    if (state === TILE_HIDDEN) setTile(x, y, TILE_FLAGGED);
+    else if (state === TILE_FLAGGED) setTile(x, y, TILE_HIDDEN);
+    else return;
+  }
+
+  invalidateTile(x, y);
+  dirty = true;
 }
 
 {
@@ -293,7 +371,7 @@ function tick(): void {
       const x = Math.floor(worldX / TILE_WORLD_SIZE);
       const y = Math.floor(worldY / TILE_WORLD_SIZE);
 
-      console.log(`${x},${y}`);
+      handleTileClick(x, y, e.button === 0);
     }
 
     panning = false;
