@@ -1,3 +1,5 @@
+export const SAFE_RADIUS = 2;
+
 export const TILE_WORLD_SIZE = 100;
 export const BASE_CHUNK_TILES = 16;
 export const BASE_CHUNK_WORLD = TILE_WORLD_SIZE * BASE_CHUNK_TILES;

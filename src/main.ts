@@ -13,6 +13,7 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   WHEEL_ZOOM_SPEED,
+  SAFE_RADIUS,
 } from "./constants";
 
 type ChunkKey = `${number}:${number}:${number}`;
@@ -28,6 +29,27 @@ const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
 const ctx = canvas.getContext("2d", { alpha: false })!;
 if (!ctx) throw new Error("Browser does not support canvas.");
+
+function randomSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0]!;
+}
+
+let seed = randomSeed();
+let mineDensity = 0.2;
+let startX: number = 0;
+let startY: number = 0;
+
+function hash2D(x: number, y: number): number {
+  let h = seed ^ Math.imul(y, 73856093) ^ Math.imul(x, 19349663);
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+function hasMine(x: number, y: number): boolean {
+  if (Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS) return false;
+  return hash2D(x, y) < mineDensity * 4294967296;
+}
 
 let canvasWidth = 0;
 let canvasHeight = 0;
@@ -54,12 +76,15 @@ function packKey(level: number, cx: number, cy: number): ChunkKey {
 const scratch = new OffscreenCanvas(BITMAP_RES, BITMAP_RES);
 const scratchCtx = scratch.getContext("2d")!;
 
-function renderChunk(level: number): ImageBitmap {
+function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
   const worldSize = chunkWorldSize(level);
   const tilesPerSize = worldSize / TILE_WORLD_SIZE;
+
+  const baseTileX = Math.floor((cx * worldSize) / TILE_WORLD_SIZE);
+  const baseTileY = Math.floor((cy * worldSize) / TILE_WORLD_SIZE);
+
   const px = BITMAP_RES / tilesPerSize;
   const drawDetails = px >= 16;
-
   const borderWidth = Math.max(1, Math.round(px / 24));
   const borderRadius = Math.max(1, Math.round(px / 12));
 
@@ -67,14 +92,18 @@ function renderChunk(level: number): ImageBitmap {
   scratchCtx.fillRect(0, 0, BITMAP_RES, BITMAP_RES);
 
   for (let ly = 0; ly < tilesPerSize; ly++) {
+    const y = baseTileY + ly;
     const py0 = Math.round(ly * px);
     const py1 = Math.round((ly + 1) * px);
 
     for (let lx = 0; lx < tilesPerSize; lx++) {
+      const x = baseTileX + lx;
       const px0 = Math.round(lx * px);
       const px1 = Math.round((lx + 1) * px);
 
-      scratchCtx.fillStyle = "#303030";
+      const mine = hasMine(x, y);
+
+      scratchCtx.fillStyle = mine ? "#803030" : "#303030";
       if (drawDetails) {
         scratchCtx.beginPath();
         scratchCtx.roundRect(
@@ -118,7 +147,7 @@ function getChunk(level: number, cx: number, cy: number): ImageBitmap {
     if (oldestKey !== undefined) disposeChunk(oldestKey);
   }
 
-  const bitmap = renderChunk(level);
+  const bitmap = renderChunk(level, cx, cy);
   chunkCache.set(key, { level, cx, cy, bitmap });
   return bitmap;
 }
@@ -235,7 +264,7 @@ function tick(): void {
     if (index !== -1) activePointers[index] = e;
 
     if (activePointers.length === 1) {
-      if (Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
+      if (!panning && Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
         panning = true;
         canvas.style.cursor = "grabbing";
       }
