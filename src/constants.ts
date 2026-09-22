@@ -19,3 +19,4 @@ export const MAX_ZOOM = 2;
 
 export const PAN_THRESHOLD = 10;
 export const WHEEL_ZOOM_SPEED = 0.001;
+export const TOUCHPAD_ZOOM_SPEED = 0.005;

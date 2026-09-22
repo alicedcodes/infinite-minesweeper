@@ -14,6 +14,7 @@ import {
   MAX_ZOOM,
   WHEEL_ZOOM_SPEED,
   SAFE_RADIUS,
+  TOUCHPAD_ZOOM_SPEED,
 } from "./constants";
 
 type ChunkKey = `${number}:${number}:${number}`;
@@ -327,8 +328,12 @@ function tick(): void {
 
   canvas.addEventListener(
     "wheel",
-    (e) => updateZoom(zoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SPEED), e.clientX, e.clientY),
-    { passive: true },
+    (e) => {
+      e.preventDefault();
+      const mod = e.ctrlKey ? TOUCHPAD_ZOOM_SPEED : WHEEL_ZOOM_SPEED;
+      updateZoom(zoom * Math.exp(-e.deltaY * mod), e.clientX, e.clientY);
+    },
+    { passive: false },
   );
 }
 
