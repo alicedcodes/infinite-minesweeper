@@ -345,10 +345,12 @@ function handleTileClick(x: number, y: number, reveal: boolean): void {
     if (activePointers.length === 1) {
       if (!panning && Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
         panning = true;
-        canvas.style.cursor = "grabbing";
+        if (started) {
+          canvas.style.cursor = "grabbing";
+        }
       }
 
-      if (panning) {
+      if (panning && started) {
         camX = (dragX - e.clientX) / zoom;
         camY = (dragY - e.clientY) / zoom;
         dirty = true;
@@ -386,20 +388,22 @@ function handleTileClick(x: number, y: number, reveal: boolean): void {
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
     if (zoom === newZoom) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const mouseScreenX = clientX - rect.left;
-    const mouseScreenY = clientY - rect.top;
+    if (started) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseScreenX = clientX - rect.left;
+      const mouseScreenY = clientY - rect.top;
 
-    const offsetX = mouseScreenX - canvasWidth / 2;
-    const offsetY = mouseScreenY - canvasHeight / 2;
+      const offsetX = mouseScreenX - canvasWidth / 2;
+      const offsetY = mouseScreenY - canvasHeight / 2;
 
-    const worldX = offsetX / zoom + camX;
-    const worldY = offsetY / zoom + camY;
+      const worldX = offsetX / zoom + camX;
+      const worldY = offsetY / zoom + camY;
+
+      camX = worldX - offsetX / newZoom;
+      camY = worldY - offsetY / newZoom;
+    }
 
     zoom = newZoom;
-
-    camX = worldX - offsetX / zoom;
-    camY = worldY - offsetY / zoom;
 
     dirty = true;
   }
