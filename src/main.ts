@@ -188,7 +188,6 @@ function tick(): void {
   }
 
   if (dirty) {
-    console.log(zoom);
     draw();
     dirty = false;
   }
