@@ -196,95 +196,97 @@ function tick(): void {
   requestAnimationFrame(tick);
 }
 
-const observer = new ResizeObserver((entries) => {
-  const entry = entries[0]!;
-  const { width, height } = entry.contentRect;
+{
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[0]!;
+    const { width, height } = entry.contentRect;
 
-  canvas.width = width;
-  canvas.height = height;
-  canvasWidth = width;
-  canvasHeight = height;
+    canvas.width = width;
+    canvas.height = height;
+    canvasWidth = width;
+    canvasHeight = height;
 
-  dirty = true;
-});
-observer.observe(canvas);
+    dirty = true;
+  });
+  observer.observe(canvas);
 
-const activePointers: PointerEvent[] = [];
-let panning = false;
-let initialX = 0;
-let initialY = 0;
-let dragX = 0;
-let dragY = 0;
+  const activePointers: PointerEvent[] = [];
+  let panning = false;
+  let initialX = 0;
+  let initialY = 0;
+  let dragX = 0;
+  let dragY = 0;
 
-canvas.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
-  activePointers.push(e);
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
+    activePointers.push(e);
 
-  panning = false;
+    panning = false;
 
-  if (activePointers.length === 1) {
-    initialX = e.clientX;
-    initialY = e.clientY;
-    dragX = e.clientX + camX * zoom;
-    dragY = e.clientY + camY * zoom;
-  }
-});
-
-window.addEventListener("pointermove", (e) => {
-  const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
-  if (index !== -1) activePointers[index] = e;
-
-  if (activePointers.length === 1) {
-    if (Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
-      panning = true;
-      canvas.style.cursor = "grabbing";
+    if (activePointers.length === 1) {
+      initialX = e.clientX;
+      initialY = e.clientY;
+      dragX = e.clientX + camX * zoom;
+      dragY = e.clientY + camY * zoom;
     }
+  });
 
-    if (panning) {
-      camX = (dragX - e.clientX) / zoom;
-      camY = (dragY - e.clientY) / zoom;
-      dirty = true;
+  window.addEventListener("pointermove", (e) => {
+    const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
+    if (index !== -1) activePointers[index] = e;
+
+    if (activePointers.length === 1) {
+      if (Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
+        panning = true;
+        canvas.style.cursor = "grabbing";
+      }
+
+      if (panning) {
+        camX = (dragX - e.clientX) / zoom;
+        camY = (dragY - e.clientY) / zoom;
+        dirty = true;
+      }
     }
+  });
+
+  function handlePointerUp(e: PointerEvent): void {
+    const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
+    if (index !== -1) activePointers.splice(index, 1);
+    panning = false;
+    canvas.style.cursor = "default";
   }
-});
 
-function handlePointerUp(e: PointerEvent): void {
-  const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
-  if (index !== -1) activePointers.splice(index, 1);
-  panning = false;
-  canvas.style.cursor = "default";
+  window.addEventListener("pointerup", handlePointerUp);
+  window.addEventListener("pointercancel", handlePointerUp);
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  function updateZoom(targetZoom: number, clientX: number, clientY: number): void {
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
+    if (zoom === newZoom) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseScreenX = clientX - rect.left;
+    const mouseScreenY = clientY - rect.top;
+
+    const offsetX = mouseScreenX - canvasWidth / 2;
+    const offsetY = mouseScreenY - canvasHeight / 2;
+
+    const worldX = offsetX / zoom + camX;
+    const worldY = offsetY / zoom + camY;
+
+    zoom = newZoom;
+
+    camX = worldX - offsetX / zoom;
+    camY = worldY - offsetY / zoom;
+
+    dirty = true;
+  }
+
+  canvas.addEventListener(
+    "wheel",
+    (e) => updateZoom(zoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SPEED), e.clientX, e.clientY),
+    { passive: true },
+  );
 }
-
-window.addEventListener("pointerup", handlePointerUp);
-window.addEventListener("pointercancel", handlePointerUp);
-canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-
-function updateZoom(targetZoom: number, clientX: number, clientY: number): void {
-  const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
-  if (zoom === newZoom) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const mouseScreenX = clientX - rect.left;
-  const mouseScreenY = clientY - rect.top;
-
-  const offsetX = mouseScreenX - canvasWidth / 2;
-  const offsetY = mouseScreenY - canvasHeight / 2;
-
-  const worldX = offsetX / zoom + camX;
-  const worldY = offsetY / zoom + camY;
-
-  zoom = newZoom;
-
-  camX = worldX - offsetX / zoom;
-  camY = worldY - offsetY / zoom;
-
-  dirty = true;
-}
-
-canvas.addEventListener(
-  "wheel",
-  (e) => updateZoom(zoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SPEED), e.clientX, e.clientY),
-  { passive: true },
-);
 
 requestAnimationFrame(tick);
