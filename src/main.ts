@@ -15,6 +15,15 @@ import {
   WHEEL_ZOOM_SPEED,
 } from "./constants";
 
+type ChunkKey = `${number}:${number}:${number}`;
+
+interface ChunkEntry {
+  level: number;
+  cx: number;
+  cy: number;
+  bitmap: ImageBitmap;
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
 const ctx = canvas.getContext("2d", { alpha: false })!;
@@ -37,8 +46,6 @@ function pickLevel(): number {
 function chunkWorldSize(level: number): number {
   return BASE_CHUNK_WORLD * 2 ** level;
 }
-
-type ChunkKey = `${number}:${number}:${number}`;
 
 function packKey(level: number, cx: number, cy: number): ChunkKey {
   return `${level}:${cx}:${cy}`;
@@ -87,13 +94,6 @@ function renderChunk(level: number): ImageBitmap {
   return scratch.transferToImageBitmap();
 }
 
-interface ChunkEntry {
-  level: number;
-  cx: number;
-  cy: number;
-  bitmap: ImageBitmap;
-}
-
 const chunkCache = new Map<ChunkKey, ChunkEntry>();
 let lastSweep = 0;
 
@@ -123,15 +123,13 @@ function getChunk(level: number, cx: number, cy: number): ImageBitmap {
   return bitmap;
 }
 
-interface ChunkRange {
+function computeChunkRange(padding = 0): {
   level: number;
   startCX: number;
   endCX: number;
   startCY: number;
   endCY: number;
-}
-
-function computeChunkRange(padding = 0): ChunkRange {
+} {
   const level = pickLevel();
   const worldSize = chunkWorldSize(level);
 
