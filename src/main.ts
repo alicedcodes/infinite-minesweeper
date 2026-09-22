@@ -111,7 +111,7 @@ function getTileMetaData(x: number, y: number): number {
 
   const finished = minesAccountedFor === nearbyMines && incorrectFlags === 0;
 
-  const data = nearbyMines | (finished ? FINISHED_BIT : 0);
+  const data = (nearbyMines << 1) | (finished ? FINISHED_BIT : 0);
   metaDataCache.set(key, data);
   return data;
 }
@@ -191,7 +191,7 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
         let text: string | number = "";
         if (state === TILE_REVEALED) {
           if (mine) text = "💥";
-          else text = getTileMetaData(x, y) & NEARBY_MINES_MASK;
+          else text = (getTileMetaData(x, y) & NEARBY_MINES_MASK) >> 1;
         } else if (state === TILE_FLAGGED) text = "🚩";
 
         if (text) {
