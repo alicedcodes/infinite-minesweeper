@@ -2,6 +2,20 @@ export const TILE_HIDDEN = 0;
 export const TILE_REVEALED = 1;
 export const TILE_FLAGGED = 2;
 
+export const NEIGHBOUR_OFFSETS: [number, number][] = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+];
+
+export const NEARBY_MINES_MASK = 0b1111;
+export const FINISHED_BIT = 0b10000;
+
 export const SAFE_RADIUS = 2;
 
 export const TILE_WORLD_SIZE = 100;

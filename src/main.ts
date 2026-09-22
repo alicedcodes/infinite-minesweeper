@@ -21,6 +21,9 @@ import {
   DRAW_DETAILS_START,
   BORDER_RADIUS_FRACTION,
   BORDER_WIDTH_FRACTION,
+  NEIGHBOUR_OFFSETS,
+  FINISHED_BIT,
+  NEARBY_MINES_MASK,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -44,6 +47,7 @@ function randomSeed(): number {
 }
 
 const tileStates = new Map<number, TileState>();
+const metaDataCache = new Map<number, number>();
 let seed = randomSeed();
 let mineDensity = 0.2;
 let started = false;
@@ -62,6 +66,14 @@ function setTile(x: number, y: number, state: TileState): void {
   const key = packTileKey(x, y);
   if (state === TILE_HIDDEN) tileStates.delete(key);
   else tileStates.set(key, state);
+
+  invalidateTile(x, y);
+  for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
+    const nx = x + ox;
+    const ny = y + oy;
+    metaDataCache.delete(packTileKey(nx, ny));
+    invalidateTile(nx, ny);
+  }
 }
 
 function hash2D(x: number, y: number): number {
@@ -75,6 +87,33 @@ function hasMine(x: number, y: number): boolean {
   if (started && Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS)
     return false;
   return hash2D(x, y) < mineDensity * 4294967296;
+}
+
+function getTileMetaData(x: number, y: number): number {
+  const key = packTileKey(x, y);
+  const cached = metaDataCache.get(key);
+  if (cached !== undefined) return cached;
+
+  let nearbyMines = 0;
+  let minesAccountedFor = 0;
+  let incorrectFlags = 0;
+
+  for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
+    const nx = x + ox;
+    const ny = y + oy;
+    const state = getTile(nx, ny);
+
+    if (hasMine(nx, ny)) {
+      nearbyMines++;
+      if (state !== TILE_HIDDEN) minesAccountedFor++;
+    } else if (state === TILE_FLAGGED) incorrectFlags++;
+  }
+
+  const finished = minesAccountedFor === nearbyMines && incorrectFlags === 0;
+
+  const data = nearbyMines | (finished ? FINISHED_BIT : 0);
+  metaDataCache.set(key, data);
+  return data;
 }
 
 let canvasWidth = 0;
@@ -114,6 +153,10 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
   const borderWidth = Math.max(1, Math.round(px / BORDER_WIDTH_FRACTION));
   const borderRadius = Math.max(1, Math.round(px / BORDER_RADIUS_FRACTION));
 
+  scratchCtx.font = `bold ${Math.round(px * 0.55)}px sans-serif`;
+  scratchCtx.textAlign = "center";
+  scratchCtx.textBaseline = "middle";
+
   scratchCtx.fillStyle = "#000";
   scratchCtx.fillRect(0, 0, BITMAP_RES, BITMAP_RES);
 
@@ -145,12 +188,15 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
         );
         scratchCtx.fill();
 
-        const icon = state === TILE_FLAGGED ? "🚩" : mine ? "💥" : null;
-        if (icon) {
-          scratchCtx.font = `${Math.round(px * 0.55)}px sans-serif`;
-          scratchCtx.textAlign = "center";
-          scratchCtx.textBaseline = "middle";
-          scratchCtx.fillText(icon, px0 + px / 2, py0 + px / 2);
+        let text: string | number = "";
+        if (state === TILE_REVEALED) {
+          if (mine) text = "💥";
+          else text = getTileMetaData(x, y) & NEARBY_MINES_MASK;
+        } else if (state === TILE_FLAGGED) text = "🚩";
+
+        if (text) {
+          scratchCtx.fillStyle = "#fff";
+          scratchCtx.fillText(String(text), px0 + px / 2, py0 + px / 2);
         }
       } else {
         scratchCtx.fillRect(px0, py0, px1 - px0, py1 - py0);
@@ -299,7 +345,6 @@ function handleTileClick(x: number, y: number, reveal: boolean): void {
     else return;
   }
 
-  invalidateTile(x, y);
   dirty = true;
 }
 
