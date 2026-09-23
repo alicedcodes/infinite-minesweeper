@@ -13,9 +13,9 @@ export const NEIGHBOUR_OFFSETS: [number, number][] = [
   [1, 1],
 ];
 
-export const NEARBY_MINES_MASK = 0b1111 << 2;
 export const FINISHED_BIT = 0b1;
-export const CAN_INTERACT_BIT = 0b10;
+export const CAN_INTERACT_BIT = 0b1 << 1;
+export const NEARBY_MINES_MASK = 0b1111 << 2;
 
 export const SAFE_RADIUS = 2;
 
