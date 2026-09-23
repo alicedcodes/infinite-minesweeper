@@ -28,6 +28,7 @@ import {
   FONT_SIZE,
   FONT_FAMILY,
   CAN_INTERACT_BIT,
+  RESET_TIMEOUT_MS,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -425,6 +426,23 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
   dirty = true;
 }
 
+function reset(): void {
+  tileStates.clear();
+  metaDataCache.clear();
+  chunkCache.clear();
+
+  seed = randomSeed();
+
+  started = false;
+  startX = 0;
+  startY = 0;
+
+  camX = 0;
+  camY = 0;
+
+  dirty = true;
+}
+
 {
   const observer = new ResizeObserver((entries) => {
     const entry = entries[0]!;
@@ -539,6 +557,33 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
     },
     { passive: false },
   );
+
+  const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
+  if (restartButton) {
+    let resetTimeout: number | null = null;
+
+    const state1 = (): void => {
+      restartButton.textContent = "Reset";
+      restartButton.onclick = state2;
+
+      if (resetTimeout !== null) {
+        clearTimeout(resetTimeout);
+        resetTimeout = null;
+      }
+    };
+
+    const state2 = (): void => {
+      restartButton.textContent = "Are you sure?";
+      restartButton.onclick = (): void => {
+        reset();
+        state1();
+      };
+
+      resetTimeout = setTimeout(state1, RESET_TIMEOUT_MS);
+    };
+
+    state1();
+  } else console.warn("Could not get restartButton element");
 }
 
 document.fonts
