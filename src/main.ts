@@ -354,14 +354,17 @@ function tick(): void {
   requestAnimationFrame(tick);
 }
 
-function handleTileClick(x: number, y: number, reveal: boolean): void {
+function handleTileClick(x: number, y: number, reveal: boolean, touchControls: boolean): void {
   if (BITMAP_RES / (chunkWorldSize(pickLevel()) / TILE_WORLD_SIZE) < DRAW_DETAILS_START) return;
 
   const state = getTile(x, y);
 
-  if (state === TILE_REVEALED && isFinished(getTileMetaData(x, y))) {
-    revealQueue.push([x, y]);
-  } else if (reveal) {
+  if ((reveal || touchControls) && state === TILE_REVEALED) {
+    if (isFinished(getTileMetaData(x, y))) revealQueue.push([x, y]);
+    return;
+  }
+
+  if (reveal) {
     if (state === TILE_HIDDEN) {
       if (!started) {
         started = true;
@@ -450,7 +453,7 @@ function handleTileClick(x: number, y: number, reveal: boolean): void {
       const x = Math.floor(worldX / TILE_WORLD_SIZE);
       const y = Math.floor(worldY / TILE_WORLD_SIZE);
 
-      handleTileClick(x, y, e.button === 0);
+      handleTileClick(x, y, e.button === 0, e.pointerType === "touch");
     }
 
     panning = false;
