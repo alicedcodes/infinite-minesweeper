@@ -66,8 +66,8 @@ function setTile(x: number, y: number, state: TileState): void {
   const key = packTileKey(x, y);
   if (state === TILE_HIDDEN) tileStates.delete(key);
   else tileStates.set(key, state);
-
   invalidateTile(x, y);
+
   for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
     const nx = x + ox;
     const ny = y + oy;
@@ -95,31 +95,36 @@ function getTileMetaData(x: number, y: number): number {
   if (cached !== undefined) return cached;
 
   let nearbyMines = 0;
-  let minesAccountedFor = 0;
-  let incorrectFlags = 0;
+  let guessedMines = 0;
 
   for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
-    const nx = x + ox;
-    const ny = y + oy;
+    const [nx, ny] = [x + ox, y + oy];
     const state = getTile(nx, ny);
 
     if (hasMine(nx, ny)) {
       nearbyMines++;
-      if (state !== TILE_HIDDEN) minesAccountedFor++;
-    } else if (state === TILE_FLAGGED) incorrectFlags++;
+      if (state === TILE_REVEALED) guessedMines++;
+    }
+    if (state === TILE_FLAGGED) guessedMines++;
   }
 
-  const finished = minesAccountedFor === nearbyMines && incorrectFlags === 0;
+  const finished = guessedMines === nearbyMines;
 
   const data = (nearbyMines << 1) | (finished ? FINISHED_BIT : 0);
   metaDataCache.set(key, data);
   return data;
 }
 
+function isFinished(data: number): boolean {
+  return (data & FINISHED_BIT) === 1;
+}
+
+function getNearbyMines(data: number): number {
+  return (data & NEARBY_MINES_MASK) >> 1;
+}
+
 let canvasWidth = 0;
 let canvasHeight = 0;
-
-let dirty = true;
 
 let zoom = 1;
 let camX = 0;
@@ -191,7 +196,7 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
         let text: string | number = "";
         if (state === TILE_REVEALED) {
           if (mine) text = "💥";
-          else text = (getTileMetaData(x, y) & NEARBY_MINES_MASK) >> 1;
+          else text = getNearbyMines(getTileMetaData(x, y));
         } else if (state === TILE_FLAGGED) text = "🚩";
 
         if (text) {
@@ -310,12 +315,35 @@ function draw(): void {
   }
 }
 
+const revealQueue: [number, number][] = [];
+let dirty = true;
+
 function tick(): void {
   const now = performance.now();
 
   if (now - lastSweep >= SWEEPER_INTERVAL_MS) {
     lastSweep = now;
     sweepUnusedChunks();
+  }
+
+  let i = 0;
+  while (revealQueue.length && i++ < 100) {
+    const [sx, sy] = revealQueue.pop()!;
+
+    const finished = isFinished(getTileMetaData(sx, sy));
+    if (!finished) continue;
+
+    for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
+      const [x, y] = [sx + ox, sy + oy];
+      const state = getTile(x, y);
+      const mine = hasMine(x, y);
+
+      if (state === TILE_FLAGGED && mine) continue;
+
+      setTile(x, y, TILE_REVEALED);
+      if (state === TILE_HIDDEN) revealQueue.push([x, y]);
+      dirty = true;
+    }
   }
 
   if (dirty) {
@@ -331,14 +359,18 @@ function handleTileClick(x: number, y: number, reveal: boolean): void {
 
   const state = getTile(x, y);
 
-  if (reveal) {
-    if (state !== TILE_HIDDEN) return;
-    if (!started) {
-      started = true;
-      startX = x;
-      startY = y;
+  if (state === TILE_REVEALED && isFinished(getTileMetaData(x, y))) {
+    revealQueue.push([x, y]);
+  } else if (reveal) {
+    if (state === TILE_HIDDEN) {
+      if (!started) {
+        started = true;
+        startX = x;
+        startY = y;
+      }
+      setTile(x, y, TILE_REVEALED);
+      revealQueue.push([x, y]);
     }
-    setTile(x, y, TILE_REVEALED);
   } else if (started) {
     if (state === TILE_HIDDEN) setTile(x, y, TILE_FLAGGED);
     else if (state === TILE_FLAGGED) setTile(x, y, TILE_HIDDEN);
