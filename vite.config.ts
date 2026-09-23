@@ -5,6 +5,7 @@ export default defineConfig({
     "*": "vp check --fix",
   },
   fmt: {
+    jsdoc: true,
     sortImports: true,
     sortPackageJson: {
       sortScripts: true,

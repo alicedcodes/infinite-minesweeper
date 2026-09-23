@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Default",
+    "BORDER": "oklch(0.2 0 0)",
+    "TILE_0_BG": "oklch(0.8 0.35 45)",
+    "TILE_1_BG": "oklch(0.8 0.35 45)",
+    "TILE_2_BG": "oklch(0.8 0.35 90)",
+    "TILE_3_BG": "oklch(0.8 0.35 135)",
+    "TILE_4_BG": "oklch(0.8 0.35 180)",
+    "TILE_5_BG": "oklch(0.8 0.35 225)",
+    "TILE_6_BG": "oklch(0.8 0.35 270)",
+    "TILE_7_BG": "oklch(0.8 0.35 315)",
+    "TILE_8_BG": "oklch(0.8 0.35 0)",
+    "TILE_0_TX": "#000",
+    "TILE_1_TX": "#000",
+    "TILE_2_TX": "#000",
+    "TILE_3_TX": "#000",
+    "TILE_4_TX": "#000",
+    "TILE_5_TX": "#000",
+    "TILE_6_TX": "#000",
+    "TILE_7_TX": "#000",
+    "TILE_8_TX": "#000",
+    "FLAG_BG": "oklch(0.9 0 0)",
+    "FLAG_TX": "#000",
+    "MINE_BG": "oklch(0.9 0 0)",
+    "MINE_TX": "#000",
+    "CAN": "oklch(0.3 0 0)",
+    "CANT": "oklch(0.3 0 0 / 0.3)"
+  }
+]

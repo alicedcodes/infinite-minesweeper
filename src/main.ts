@@ -1,4 +1,5 @@
 import "./style.css";
+import THEMES from "./assets/themes.json" with { type: "json" };
 import {
   TARGET_SCREEN_PX,
   BASE_CHUNK_WORLD,
@@ -24,6 +25,9 @@ import {
   NEIGHBOUR_OFFSETS,
   FINISHED_BIT,
   NEARBY_MINES_MASK,
+  FONT_SIZE,
+  FONT_FAMILY,
+  CAN_INTERACT_BIT,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -66,6 +70,7 @@ function setTile(x: number, y: number, state: TileState): void {
   const key = packTileKey(x, y);
   if (state === TILE_HIDDEN) tileStates.delete(key);
   else tileStates.set(key, state);
+  metaDataCache.delete(key);
   invalidateTile(x, y);
 
   for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
@@ -84,9 +89,9 @@ function hash2D(x: number, y: number): number {
 }
 
 function hasMine(x: number, y: number): boolean {
-  if (started && Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS)
-    return false;
-  return hash2D(x, y) < mineDensity * 4294967296;
+  return started && Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS
+    ? false
+    : hash2D(x, y) < mineDensity * 4294967296;
 }
 
 function getTileMetaData(x: number, y: number): number {
@@ -96,6 +101,7 @@ function getTileMetaData(x: number, y: number): number {
 
   let nearbyMines = 0;
   let guessedMines = 0;
+  let canInteract = false;
 
   for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
     const [nx, ny] = [x + ox, y + oy];
@@ -106,21 +112,28 @@ function getTileMetaData(x: number, y: number): number {
       if (state === TILE_REVEALED) guessedMines++;
     }
     if (state === TILE_FLAGGED) guessedMines++;
+
+    if (state === TILE_REVEALED) canInteract = true;
   }
 
   const finished = guessedMines === nearbyMines;
 
-  const data = (nearbyMines << 1) | (finished ? FINISHED_BIT : 0);
+  const data =
+    (nearbyMines << 2) | (canInteract ? CAN_INTERACT_BIT : 0) | (finished ? FINISHED_BIT : 0);
   metaDataCache.set(key, data);
   return data;
 }
 
 function isFinished(data: number): boolean {
-  return (data & FINISHED_BIT) === 1;
+  return (data & FINISHED_BIT) === FINISHED_BIT;
+}
+
+function getCanInteract(data: number): boolean {
+  return (data & CAN_INTERACT_BIT) === CAN_INTERACT_BIT;
 }
 
 function getNearbyMines(data: number): number {
-  return (data & NEARBY_MINES_MASK) >> 1;
+  return (data & NEARBY_MINES_MASK) >> 2;
 }
 
 let canvasWidth = 0;
@@ -146,6 +159,8 @@ function packKey(level: number, cx: number, cy: number): ChunkKey {
 const scratch = new OffscreenCanvas(BITMAP_RES, BITMAP_RES);
 const scratchCtx = scratch.getContext("2d")!;
 
+let themeIndex = 0;
+
 function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
   const worldSize = chunkWorldSize(level);
   const tilesPerSize = worldSize / TILE_WORLD_SIZE;
@@ -158,11 +173,13 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
   const borderWidth = Math.max(1, Math.round(px / BORDER_WIDTH_FRACTION));
   const borderRadius = Math.max(1, Math.round(px / BORDER_RADIUS_FRACTION));
 
-  scratchCtx.font = `bold ${Math.round(px * 0.55)}px sans-serif`;
+  const t = THEMES[themeIndex] ?? THEMES[0]!;
+
+  scratchCtx.font = `bold ${Math.round(px * FONT_SIZE)}px ${FONT_FAMILY}`;
   scratchCtx.textAlign = "center";
   scratchCtx.textBaseline = "middle";
 
-  scratchCtx.fillStyle = "#000";
+  scratchCtx.fillStyle = t.BORDER;
   scratchCtx.fillRect(0, 0, BITMAP_RES, BITMAP_RES);
 
   for (let ly = 0; ly < tilesPerSize; ly++) {
@@ -178,10 +195,26 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
       const state = getTile(x, y);
       const mine = state === TILE_REVEALED && hasMine(x, y);
 
-      if (state === TILE_HIDDEN) scratchCtx.fillStyle = "#303030";
-      else if (state === TILE_FLAGGED) scratchCtx.fillStyle = "#306030";
-      else scratchCtx.fillStyle = mine ? "#803030" : "#505050";
+      const data = getTileMetaData(x, y);
+      const nearbyMines = state === TILE_REVEALED ? getNearbyMines(data) : 0;
+      const canInteract = state === TILE_HIDDEN && getCanInteract(data);
 
+      let bg = canInteract ? t.CAN : t.CANT;
+      let tx = "";
+      if (state === TILE_REVEALED) {
+        if (mine) {
+          bg = t.MINE_BG;
+          tx = t.MINE_TX;
+        } else {
+          bg = t[`TILE_${nearbyMines}_BG` as keyof typeof t];
+          tx = t[`TILE_${nearbyMines}_TX` as keyof typeof t];
+        }
+      } else if (state === TILE_FLAGGED) {
+        bg = t.FLAG_BG;
+        tx = t.FLAG_TX;
+      }
+
+      scratchCtx.fillStyle = bg;
       if (drawDetails) {
         scratchCtx.beginPath();
         scratchCtx.roundRect(
@@ -193,15 +226,19 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
         );
         scratchCtx.fill();
 
-        let text: string | number = "";
-        if (state === TILE_REVEALED) {
-          if (mine) text = "💥";
-          else text = getNearbyMines(getTileMetaData(x, y));
-        } else if (state === TILE_FLAGGED) text = "🚩";
+        if (tx) {
+          let text = "";
+          if (state === TILE_REVEALED) {
+            if (mine) text = "💥";
+            else if (nearbyMines > 0) {
+              text = String(nearbyMines);
+            }
+          } else if (state === TILE_FLAGGED) text = "🚩";
 
-        if (text) {
-          scratchCtx.fillStyle = "#fff";
-          scratchCtx.fillText(String(text), px0 + px / 2, py0 + px / 2);
+          if (text) {
+            scratchCtx.fillStyle = tx;
+            scratchCtx.fillText(String(text), px0 + px / 2, py0 + px / 2 + px * 0.03);
+          }
         }
       } else {
         scratchCtx.fillRect(px0, py0, px1 - px0, py1 - py0);
@@ -359,6 +396,11 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
 
   const state = getTile(x, y);
 
+  if (started) {
+    const canInteract = state !== TILE_HIDDEN || getCanInteract(getTileMetaData(x, y));
+    if (!canInteract) return;
+  }
+
   if ((reveal || touchControls) && state === TILE_REVEALED) {
     if (isFinished(getTileMetaData(x, y))) revealQueue.push([x, y]);
     return;
@@ -499,4 +541,7 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
   );
 }
 
-requestAnimationFrame(tick);
+document.fonts
+  .load(`0px ${FONT_FAMILY}`)
+  .then(() => requestAnimationFrame(tick))
+  .catch(console.error);

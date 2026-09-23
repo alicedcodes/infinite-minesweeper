@@ -13,8 +13,9 @@ export const NEIGHBOUR_OFFSETS: [number, number][] = [
   [1, 1],
 ];
 
-export const NEARBY_MINES_MASK = 0b1111 << 1;
+export const NEARBY_MINES_MASK = 0b1111 << 2;
 export const FINISHED_BIT = 0b1;
+export const CAN_INTERACT_BIT = 0b10;
 
 export const SAFE_RADIUS = 2;
 
@@ -26,6 +27,9 @@ export const BITMAP_RES = 512;
 export const TARGET_SCREEN_PX = 384;
 
 export const DRAW_DETAILS_START = 24;
+
+export const FONT_FAMILY = 'Arial, Helvetica, sans-serif, "Noto Emoji Variable"';
+export const FONT_SIZE = 0.64;
 
 export const BORDER_WIDTH_FRACTION = 24;
 export const BORDER_RADIUS_FRACTION = 12;
