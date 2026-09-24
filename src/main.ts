@@ -113,14 +113,14 @@ function getTileMetaData(x: number, y: number): number {
       if (state === TILE_REVEALED) guessedMines++;
     }
     if (state === TILE_FLAGGED) guessedMines++;
-
     if (state === TILE_REVEALED) canInteract = true;
   }
 
-  const finished = guessedMines === nearbyMines;
-
   const data =
-    (nearbyMines << 2) | (canInteract ? CAN_INTERACT_BIT : 0) | (finished ? FINISHED_BIT : 0);
+    (nearbyMines << 2) |
+    (canInteract ? CAN_INTERACT_BIT : 0) |
+    (guessedMines === nearbyMines ? FINISHED_BIT : 0);
+
   metaDataCache.set(key, data);
   return data;
 }
