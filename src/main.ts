@@ -29,6 +29,8 @@ import {
   FONT_FAMILY,
   CAN_INTERACT_BIT,
   RESET_TIMEOUT_MS,
+  ANIMATION_DELAY,
+  ANIMATION_DURATION,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -52,6 +54,7 @@ function randomSeed(): number {
 }
 
 const tileStates = new Map<number, TileState>();
+// TODO: Manage metaDataCache memory (e.g., removing old meta data)
 const metaDataCache = new Map<number, number>();
 let seed = randomSeed();
 let mineDensity = 0.2;
@@ -162,7 +165,7 @@ const scratchCtx = scratch.getContext("2d")!;
 
 let themeIndex = 0;
 
-function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
+function renderChunk(level: number, cx: number, cy: number, now: number): ImageBitmap {
   const worldSize = chunkWorldSize(level);
   const tilesPerSize = worldSize / TILE_WORLD_SIZE;
 
@@ -215,14 +218,47 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
         tx = t.FLAG_TX;
       }
 
+      let scale = 1;
+      if (state === TILE_REVEALED) {
+        const anim = revealAnim.get(packTileKey(x, y));
+        if (anim !== undefined) {
+          const t = Math.max(0, Math.min(1, (now - anim.start) / ANIMATION_DURATION));
+          scale = 1 - (1 - t) * (1 - t);
+        }
+      }
+
+      const w = px1 - px0;
+      const h = py1 - py0;
+
+      if (scale < 1) {
+        scratchCtx.fillStyle = t.CAN;
+        if (drawDetails) {
+          scratchCtx.beginPath();
+          scratchCtx.roundRect(
+            px0 + borderWidth,
+            py0 + borderWidth,
+            w - borderWidth * 2,
+            h - borderWidth * 2,
+            borderRadius,
+          );
+          scratchCtx.fill();
+        } else {
+          scratchCtx.fillRect(px0, py0, w, h);
+        }
+      }
+
+      scratchCtx.save();
+      scratchCtx.translate(px0 + w / 2, py0 + h / 2);
+      scratchCtx.scale(scale, scale);
       scratchCtx.fillStyle = bg;
+
       if (drawDetails) {
         scratchCtx.beginPath();
         scratchCtx.roundRect(
-          px0 + borderWidth,
-          py0 + borderWidth,
-          px1 - px0 - borderWidth * 2,
-          py1 - py0 - borderWidth * 2,
+          -w / 2 + borderWidth,
+          -h / 2 + borderWidth,
+          w - borderWidth * 2,
+          h - borderWidth * 2,
           borderRadius,
         );
         scratchCtx.fill();
@@ -238,12 +274,14 @@ function renderChunk(level: number, cx: number, cy: number): ImageBitmap {
 
           if (text) {
             scratchCtx.fillStyle = tx;
-            scratchCtx.fillText(String(text), px0 + px / 2, py0 + px / 2 + px * 0.03);
+            scratchCtx.fillText(String(text), 0, h * 0.03);
           }
         }
       } else {
-        scratchCtx.fillRect(px0, py0, px1 - px0, py1 - py0);
+        scratchCtx.fillRect(-w / 2, -h / 2, w, h);
       }
+
+      scratchCtx.restore();
     }
   }
 
@@ -260,7 +298,7 @@ function disposeChunk(key: ChunkKey): void {
   chunkCache.delete(key);
 }
 
-function getChunk(level: number, cx: number, cy: number): ImageBitmap {
+function getChunk(level: number, cx: number, cy: number, now: number): ImageBitmap {
   const key = packKey(level, cx, cy);
   const existing = chunkCache.get(key);
   if (existing) {
@@ -274,7 +312,7 @@ function getChunk(level: number, cx: number, cy: number): ImageBitmap {
     if (oldestKey !== undefined) disposeChunk(oldestKey);
   }
 
-  const bitmap = renderChunk(level, cx, cy);
+  const bitmap = renderChunk(level, cx, cy, now);
   chunkCache.set(key, { level, cx, cy, bitmap });
   return bitmap;
 }
@@ -333,7 +371,7 @@ function sweepUnusedChunks(): void {
   }
 }
 
-function draw(): void {
+function draw(now: number): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   ctx.imageSmoothingEnabled = false;
 
@@ -346,14 +384,16 @@ function draw(): void {
     const screenY = Math.round((cy * worldSize - worldTop) * zoom);
     for (let cx = range.startCX; cx < range.endCX; cx++) {
       const screenX = Math.round((cx * worldSize - worldLeft) * zoom);
-      const bitmap = getChunk(range.level, cx, cy);
+      const bitmap = getChunk(range.level, cx, cy, now);
       const size = Math.ceil(worldSize * zoom);
       ctx.drawImage(bitmap, screenX, screenY, size, size);
     }
   }
 }
 
-const revealQueue: [number, number][] = [];
+const revealQueue: [x: number, y: number, revealAt: number][] = [];
+const revealAnim = new Map<number, { x: number; y: number; start: number }>();
+let revealQueueHead = 0;
 let dirty = true;
 
 function tick(): void {
@@ -365,11 +405,13 @@ function tick(): void {
   }
 
   let i = 0;
-  while (revealQueue.length && i++ < 100) {
-    const [sx, sy] = revealQueue.pop()!;
+  while (revealQueueHead < revealQueue.length && i++ < 100) {
+    const [sx, sy, sRevealAt] = revealQueue[revealQueueHead++]!;
 
     const finished = isFinished(getTileMetaData(sx, sy));
     if (!finished) continue;
+
+    const childRevealAt = sRevealAt + ANIMATION_DELAY;
 
     for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
       const [x, y] = [sx + ox, sy + oy];
@@ -379,13 +421,30 @@ function tick(): void {
       if (state === TILE_FLAGGED && mine) continue;
 
       setTile(x, y, TILE_REVEALED);
-      if (state === TILE_HIDDEN) revealQueue.push([x, y]);
+      if (state === TILE_HIDDEN) {
+        revealAnim.set(packTileKey(x, y), { x, y, start: childRevealAt });
+        revealQueue.push([x, y, childRevealAt]);
+      }
       dirty = true;
     }
   }
 
+  if (revealQueueHead > 1000 && revealQueueHead > revealQueue.length / 2) {
+    revealQueue.splice(0, revealQueueHead);
+    revealQueueHead = 0;
+  }
+
+  if (revealAnim.size > 0) {
+    for (const { x, y, start } of revealAnim.values()) {
+      if (now - start >= ANIMATION_DURATION) {
+        revealAnim.delete(packTileKey(x, y));
+      } else invalidateTile(x, y);
+    }
+    dirty = true;
+  }
+
   if (dirty) {
-    draw();
+    draw(now);
     dirty = false;
   }
 
@@ -403,7 +462,7 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
   }
 
   if ((reveal || touchControls) && state === TILE_REVEALED) {
-    if (isFinished(getTileMetaData(x, y))) revealQueue.push([x, y]);
+    if (isFinished(getTileMetaData(x, y))) revealQueue.push([x, y, performance.now()]);
     return;
   }
 
@@ -414,8 +473,10 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
         startX = x;
         startY = y;
       }
+      const now = performance.now();
       setTile(x, y, TILE_REVEALED);
-      revealQueue.push([x, y]);
+      revealAnim.set(packTileKey(x, y), { x, y, start: now });
+      revealQueue.push([x, y, now]);
     }
   } else if (started) {
     if (state === TILE_HIDDEN) setTile(x, y, TILE_FLAGGED);
@@ -501,6 +562,7 @@ function reset(): void {
   function handlePointerUp(e: PointerEvent): void {
     const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
     if (index !== -1) activePointers.splice(index, 1);
+    else return;
 
     if (!panning) {
       const rect = canvas.getBoundingClientRect();
@@ -562,6 +624,7 @@ function reset(): void {
   if (restartButton) {
     let resetTimeout: number | null = null;
 
+    // TODO: Clicking a tile while resetTimeout is active should trigger state1
     const state1 = (): void => {
       restartButton.textContent = "Reset";
       restartButton.onclick = state2;

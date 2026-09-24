@@ -42,6 +42,9 @@ export const MAX_CACHED_CHUNKS = 320;
 export const VIEWPORT_PADDING_CHUNKS = 2;
 export const SWEEPER_INTERVAL_MS = 3000;
 
+export const ANIMATION_DELAY = 50;
+export const ANIMATION_DURATION = 150;
+
 export const MIN_ZOOM = 0.0625;
 export const MAX_ZOOM = 2;
 
