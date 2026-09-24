@@ -47,6 +47,8 @@ interface ChunkEntry {
 
 const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
+canvas.style.touchAction = "none";
+
 const ctx = canvas.getContext("2d", { alpha: false })!;
 if (!ctx) throw new Error("Browser does not support canvas.");
 
@@ -532,6 +534,21 @@ function reset(): void {
   let initialPinchZoom = 0;
   let longPressTimer: number | null = null;
 
+  function triggerClick(e: PointerEvent): void {
+    const rect = canvas.getBoundingClientRect();
+    const mouseScreenX = e.clientX - rect.left;
+    const mouseScreenY = e.clientY - rect.top;
+
+    const worldX = camX + (mouseScreenX - canvasWidth / 2) / zoom;
+    const worldY = camY + (mouseScreenY - canvasHeight / 2) / zoom;
+
+    const x = Math.floor(worldX / TILE_WORLD_SIZE);
+    const y = Math.floor(worldY / TILE_WORLD_SIZE);
+
+    const reveal = e.pointerType === "touch" ? longPress : e.button === 0;
+    handleTileClick(x, y, reveal, e.pointerType === "touch");
+  }
+
   canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
     activePointers.push(e);
@@ -552,7 +569,9 @@ function reset(): void {
 
       if (e.pointerType === "touch") {
         longPressTimer = setTimeout(() => {
+          longPressTimer = null;
           longPress = true;
+          triggerClick(e);
         }, LONG_PRESS_DURATION);
       }
     } else if (activePointers.length === 2) {
@@ -612,31 +631,20 @@ function reset(): void {
       longPressTimer = null;
     }
 
-    if (!panning) {
-      const rect = canvas.getBoundingClientRect();
-      const mouseScreenX = e.clientX - rect.left;
-      const mouseScreenY = e.clientY - rect.top;
+    if (activePointers.length > 0) return;
 
-      const worldX = camX + (mouseScreenX - canvasWidth / 2) / zoom;
-      const worldY = camY + (mouseScreenY - canvasHeight / 2) / zoom;
-
-      const x = Math.floor(worldX / TILE_WORLD_SIZE);
-      const y = Math.floor(worldY / TILE_WORLD_SIZE);
-
-      handleTileClick(
-        x,
-        y,
-        e.pointerType === "touch" ? longPress : e.button === 0,
-        e.pointerType === "touch",
-      );
+    if (pinching) {
+      pinching = false;
+      return;
     }
 
     if (panning) {
       panning = false;
       canvas.style.cursor = "default";
+      return;
     }
 
-    pinching = false;
+    if (!longPress) triggerClick(e);
   }
 
   window.addEventListener("pointerup", handlePointerUp);
