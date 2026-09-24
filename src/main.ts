@@ -31,6 +31,7 @@ import {
   RESET_TIMEOUT_MS,
   ANIMATION_DELAY,
   ANIMATION_DURATION,
+  LONG_PRESS_DURATION,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -438,7 +439,8 @@ function tick(): void {
     for (const { x, y, start } of revealAnim.values()) {
       if (now - start >= ANIMATION_DURATION) {
         revealAnim.delete(packTileKey(x, y));
-      } else invalidateTile(x, y);
+      }
+      invalidateTile(x, y);
     }
     dirty = true;
   }
@@ -519,23 +521,45 @@ function reset(): void {
   observer.observe(canvas);
 
   const activePointers: PointerEvent[] = [];
+  let longPress = false;
   let panning = false;
+  let pinching = false;
   let initialX = 0;
   let initialY = 0;
   let dragX = 0;
   let dragY = 0;
+  let initialPinchDistance = 0;
+  let initialPinchZoom = 0;
+  let longPressTimer: number | null = null;
 
   canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
     activePointers.push(e);
 
     panning = false;
+    longPress = false;
 
-    if (activePointers.length === 1) {
+    if (longPressTimer !== null) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    if (activePointers.length === 1 && !pinching) {
       initialX = e.clientX;
       initialY = e.clientY;
       dragX = e.clientX + camX * zoom;
       dragY = e.clientY + camY * zoom;
+
+      if (e.pointerType === "touch") {
+        longPressTimer = setTimeout(() => {
+          longPress = true;
+        }, LONG_PRESS_DURATION);
+      }
+    } else if (activePointers.length === 2) {
+      pinching = true;
+      const [p1, p2] = activePointers as [PointerEvent, PointerEvent];
+      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      initialPinchZoom = zoom;
     }
   });
 
@@ -546,6 +570,12 @@ function reset(): void {
     if (activePointers.length === 1) {
       if (!panning && Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
         panning = true;
+
+        if (longPressTimer !== null) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+
         if (started) {
           canvas.style.cursor = "grabbing";
         }
@@ -556,6 +586,19 @@ function reset(): void {
         camY = (dragY - e.clientY) / zoom;
         dirty = true;
       }
+    } else if (activePointers.length === 2) {
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+
+      const [p1, p2] = activePointers as [PointerEvent, PointerEvent];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      if (initialPinchDistance > 0) {
+        const midX = (p1.clientX + p2.clientX) / 2;
+        const midY = (p1.clientY + p2.clientY) / 2;
+        updateZoom(initialPinchZoom * (currentDistance / initialPinchDistance), midX, midY);
+      }
     }
   });
 
@@ -563,6 +606,11 @@ function reset(): void {
     const index = activePointers.findIndex((p) => p.pointerId === e.pointerId);
     if (index !== -1) activePointers.splice(index, 1);
     else return;
+
+    if (longPressTimer !== null) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
 
     if (!panning) {
       const rect = canvas.getBoundingClientRect();
@@ -575,11 +623,20 @@ function reset(): void {
       const x = Math.floor(worldX / TILE_WORLD_SIZE);
       const y = Math.floor(worldY / TILE_WORLD_SIZE);
 
-      handleTileClick(x, y, e.button === 0, e.pointerType === "touch");
+      handleTileClick(
+        x,
+        y,
+        e.pointerType === "touch" ? longPress : e.button === 0,
+        e.pointerType === "touch",
+      );
     }
 
-    panning = false;
-    canvas.style.cursor = "default";
+    if (panning) {
+      panning = false;
+      canvas.style.cursor = "default";
+    }
+
+    pinching = false;
   }
 
   window.addEventListener("pointerup", handlePointerUp);
