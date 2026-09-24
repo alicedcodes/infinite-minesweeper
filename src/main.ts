@@ -146,12 +146,14 @@ function getNearbyMines(data: number): number {
 let canvasWidth = 0;
 let canvasHeight = 0;
 
+let dpr = window.devicePixelRatio || 1;
+
 let zoom = 1;
 let camX = 0;
 let camY = 0;
 
 function pickLevel(): number {
-  const raw = Math.log2(TARGET_SCREEN_PX / (BASE_CHUNK_WORLD * zoom));
+  const raw = Math.log2((TARGET_SCREEN_PX * dpr) / (BASE_CHUNK_WORLD * zoom));
   return Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, Math.round(raw)));
 }
 
@@ -520,10 +522,12 @@ function reset(): void {
     const entry = entries[0]!;
     const { width, height } = entry.contentRect;
 
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     canvasWidth = width;
     canvasHeight = height;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     dirty = true;
   });
