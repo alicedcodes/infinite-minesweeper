@@ -587,7 +587,11 @@ function reset(): void {
     if (index !== -1) activePointers[index] = e;
 
     if (activePointers.length === 1) {
-      if (!panning && Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD) {
+      if (
+        !panning &&
+        !pinching &&
+        Math.hypot(e.clientX - initialX, e.clientY - initialY) >= PAN_THRESHOLD
+      ) {
         panning = true;
 
         if (longPressTimer !== null) {
