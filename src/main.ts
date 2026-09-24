@@ -153,7 +153,7 @@ let camX = 0;
 let camY = 0;
 
 function pickLevel(): number {
-  const raw = Math.log2((TARGET_SCREEN_PX * dpr) / (BASE_CHUNK_WORLD * zoom));
+  const raw = Math.log2(TARGET_SCREEN_PX / dpr / (BASE_CHUNK_WORLD * zoom));
   return Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, Math.round(raw)));
 }
 
