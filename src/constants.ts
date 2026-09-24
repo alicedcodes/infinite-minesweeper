@@ -3,14 +3,15 @@ export const TILE_REVEALED = 1;
 export const TILE_FLAGGED = 2;
 
 export const NEIGHBOUR_OFFSETS: [number, number][] = [
-  [-1, -1],
-  [-1, 0],
-  [-1, 1],
-  [0, -1],
-  [0, 1],
-  [1, -1],
-  [1, 0],
-  [1, 1],
+  [-1, 0], // N
+  [0, 1], // E
+  [1, 0], // S
+  [0, -1], // W
+
+  [-1, -1], // NW
+  [-1, 1], // NE
+  [1, 1], // SE
+  [1, -1], // SW
 ];
 
 export const FINISHED_BIT = 0b1;
