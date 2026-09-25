@@ -425,11 +425,13 @@ function tick(): void {
 
       if (state === TILE_FLAGGED && mine) continue;
 
-      setTile(x, y, TILE_REVEALED);
-      // Move into if statement if incorrect flags shouldn't animate when being revealed as mines
-      revealAnim.set(packTileKey(x, y), { x, y, start: childRevealAt });
-      if (state === TILE_HIDDEN) revealQueue.push([x, y, childRevealAt]);
-      dirty = true;
+      if (state !== TILE_REVEALED) {
+        setTile(x, y, TILE_REVEALED);
+        // Move into if statement if incorrect flags shouldn't animate when being revealed as mines
+        revealAnim.set(packTileKey(x, y), { x, y, start: childRevealAt });
+        if (state === TILE_HIDDEN) revealQueue.push([x, y, childRevealAt]);
+        dirty = true;
+      }
     }
   }
 
