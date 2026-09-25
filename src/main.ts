@@ -482,14 +482,8 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
 
       const now = performance.now();
       setTile(x, y, TILE_REVEALED);
-
-      if (hasMine(x, y)) {
-        dirty = true;
-        return;
-      }
-
       revealAnim.set(packTileKey(x, y), { x, y, start: now });
-      revealQueue.push([x, y, now]);
+      if (!hasMine(x, y)) revealQueue.push([x, y, now]);
     }
   } else if (started) {
     if (state === TILE_HIDDEN) setTile(x, y, TILE_FLAGGED);
