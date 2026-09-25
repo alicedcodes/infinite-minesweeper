@@ -32,6 +32,11 @@ import {
   ANIMATION_DELAY,
   ANIMATION_DURATION,
   LONG_PRESS_DURATION,
+  LOCAL_STORAGE_KEY,
+  DB_NAME,
+  DB_VERSION,
+  DB_STORE,
+  DEFAULT_DENSITY,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -44,6 +49,17 @@ interface ChunkEntry {
   cy: number;
   bitmap: ImageBitmap;
 }
+
+type SaveData = [
+  seed: number,
+  mineDensity: number,
+  started: boolean,
+  startX: number,
+  startY: number,
+  camX: number,
+  camY: number,
+  zoom: number,
+];
 
 const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
@@ -59,8 +75,9 @@ function randomSeed(): number {
 const tileStates = new Map<number, TileState>();
 // TODO: Manage metaDataCache memory (e.g., removing old meta data)
 const metaDataCache = new Map<number, number>();
+let dirtyTiles = new Set<number>();
 let seed = randomSeed();
-let mineDensity = 0.2;
+let mineDensity = DEFAULT_DENSITY;
 let started = false;
 let startX = 0;
 let startY = 0;
@@ -79,6 +96,9 @@ function setTile(x: number, y: number, state: TileState): void {
   else tileStates.set(key, state);
   metaDataCache.delete(key);
   invalidateTile(x, y);
+
+  dirtyTiles.add(key);
+  scheduleSave();
 
   for (const [ox, oy] of NEIGHBOUR_OFFSETS) {
     const nx = x + ox;
@@ -458,6 +478,122 @@ function tick(): void {
   requestAnimationFrame(tick);
 }
 
+let saveTimer: number | undefined;
+
+function promisify<T>(req: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = (): void => resolve(req.result);
+    req.onerror = (): void => reject(req.error);
+  });
+}
+
+function openDb(): Promise<IDBDatabase> {
+  const req = indexedDB.open(DB_NAME, DB_VERSION);
+  req.onupgradeneeded = (e): void => {
+    const db = (e.target as IDBOpenDBRequest).result;
+    if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+  };
+  return promisify(req as unknown as IDBRequest<IDBDatabase>);
+}
+
+async function load(): Promise<void> {
+  const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (raw) {
+    try {
+      const saveData: SaveData = JSON.parse(raw);
+      [seed, mineDensity, started, startX, startY, camX, camY, zoom] = saveData;
+    } catch (err) {
+      console.error("Error loading save data:", err);
+    }
+  }
+
+  try {
+    const db = await openDb();
+    const store = db.transaction([DB_STORE], "readonly").objectStore(DB_STORE);
+    const [keys, values] = await Promise.all([
+      promisify(store.getAllKeys() as IDBRequest<number[]>),
+      promisify(store.getAll() as IDBRequest<TileState[]>),
+    ]);
+
+    tileStates.clear();
+    for (let i = 0; i < keys.length; i++) tileStates.set(keys[i]!, values[i]!);
+  } catch (err) {
+    console.error("Error loading tile states:", err);
+  }
+}
+
+function save(): void {
+  try {
+    const data: SaveData = [seed, mineDensity, started, startX, startY, camX, camY, zoom];
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error("Error saving to localStorage:", err);
+  }
+
+  if (dirtyTiles.size === 0) return;
+  const changed = dirtyTiles;
+  dirtyTiles = new Set();
+
+  openDb()
+    .then(
+      (db) =>
+        new Promise<void>((resolve, reject) => {
+          const tx = db.transaction([DB_STORE], "readwrite");
+          const store = tx.objectStore(DB_STORE);
+          for (const key of changed) {
+            const state = tileStates.get(key);
+            if (state === undefined) store.delete(key);
+            else store.put(state, key);
+          }
+          tx.oncomplete = (): void => resolve();
+          tx.onerror = (): void => reject(tx.error);
+          tx.onabort = (): void => reject(tx.error);
+        }),
+    )
+    .catch((err) => {
+      console.error("Error saving tile states:", err);
+      for (const key of changed) dirtyTiles.add(key);
+    });
+}
+
+function scheduleSave(): void {
+  if (saveTimer !== undefined) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = undefined;
+    save();
+  }, 500);
+}
+
+function reset(): void {
+  tileStates.clear();
+  metaDataCache.clear();
+  dirtyTiles.clear();
+
+  for (const entry of chunkCache.values()) entry.bitmap.close();
+  chunkCache.clear();
+
+  revealQueue.length = 0;
+  revealQueueHead = 0;
+  revealAnim.clear();
+
+  seed = randomSeed();
+  mineDensity = DEFAULT_DENSITY;
+
+  started = false;
+  startX = 0;
+  startY = 0;
+
+  camX = 0;
+  camY = 0;
+
+  openDb()
+    .then((db) => db.transaction([DB_STORE], "readwrite").objectStore(DB_STORE).clear())
+    .catch(console.error);
+  save();
+
+  dirty = true;
+}
+
 function handleTileClick(x: number, y: number, reveal: boolean, touchControls: boolean): void {
   if (BITMAP_RES / (chunkWorldSize(pickLevel()) / TILE_WORLD_SIZE) < DRAW_DETAILS_START) return;
 
@@ -491,23 +627,6 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
     else if (state === TILE_FLAGGED) setTile(x, y, TILE_HIDDEN);
     else return;
   }
-
-  dirty = true;
-}
-
-function reset(): void {
-  tileStates.clear();
-  metaDataCache.clear();
-  chunkCache.clear();
-
-  seed = randomSeed();
-
-  started = false;
-  startX = 0;
-  startY = 0;
-
-  camX = 0;
-  camY = 0;
 
   dirty = true;
 }
@@ -614,6 +733,7 @@ function reset(): void {
         camX = (dragX - e.clientX) / zoom;
         camY = (dragY - e.clientY) / zoom;
         dirty = true;
+        scheduleSave();
       }
     } else if (activePointers.length === 2) {
       if (longPressTimer !== null) {
@@ -681,8 +801,8 @@ function reset(): void {
     }
 
     zoom = newZoom;
-
     dirty = true;
+    scheduleSave();
   }
 
   canvas.addEventListener(
@@ -726,5 +846,9 @@ function reset(): void {
 
 document.fonts
   .load(`0px ${FONT_FAMILY}`)
-  .then(() => requestAnimationFrame(tick))
+  .then(async () => {
+    await load();
+    requestAnimationFrame(tick);
+    scheduleSave();
+  })
   .catch(console.error);

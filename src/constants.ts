@@ -18,6 +18,8 @@ export const FINISHED_BIT = 0b1;
 export const CAN_INTERACT_BIT = 0b1 << 1;
 export const NEARBY_MINES_MASK = 0b1111 << 2;
 
+export const DEFAULT_DENSITY = 0.2;
+
 export const SAFE_RADIUS = 2;
 
 export const TILE_WORLD_SIZE = 100;
@@ -54,3 +56,9 @@ export const TOUCHPAD_ZOOM_SPEED = 0.005;
 export const LONG_PRESS_DURATION = 350;
 
 export const RESET_TIMEOUT_MS = 5000;
+
+export const LOCAL_STORAGE_KEY = "infinite-minesweeper";
+
+export const DB_NAME = "Infinite Minesweeper";
+export const DB_VERSION = 1;
+export const DB_STORE = "tileStore";
