@@ -685,6 +685,7 @@ function addListeners(): void {
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
+    resetButtonStage1?.();
 
     if (activePointers.length === 1 && !pinching) {
       initialX = e.clientX;
@@ -816,11 +817,11 @@ function addListeners(): void {
   );
 
   const resetButton = document.querySelector<HTMLButtonElement>("#resetButton");
+  let resetButtonStage1: (() => void) | null = null;
   if (resetButton) {
     let resetTimeout: number | null = null;
 
-    // TODO: Clicking a tile while resetTimeout is active should trigger state1
-    const state1 = (): void => {
+    resetButtonStage1 = (): void => {
       resetButton.textContent = "Reset";
       resetButton.onclick = state2;
 
@@ -834,13 +835,13 @@ function addListeners(): void {
       resetButton.textContent = "Are you sure?";
       resetButton.onclick = (): void => {
         reset();
-        state1();
+        resetButtonStage1!();
       };
 
-      resetTimeout = setTimeout(state1, RESET_TIMEOUT_MS);
+      resetTimeout = setTimeout(resetButtonStage1!, RESET_TIMEOUT_MS);
     };
 
-    state1();
+    resetButtonStage1();
   } else console.warn("Could not get restartButton element");
 }
 
