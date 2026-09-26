@@ -42,9 +42,9 @@ body {
   align-items: center;
   padding: 0 1rem;
   gap: 1rem;
-  background-color: oklch(0.4 0 0 / 0.95);
+  background: linear-gradient(180deg, oklch(0.35 0 0 / 0.95), oklch(0.3 0 0 / 0.95));
   border-radius: 0.5rem;
-  border: 1px solid oklch(0.5 0 0 / 0.95);
+  border: 1px solid oklch(0.45 0 0 / 0.95);
 }
 
 #resetButton {
