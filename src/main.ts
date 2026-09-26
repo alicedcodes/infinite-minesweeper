@@ -815,14 +815,14 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
     { passive: false },
   );
 
-  const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
-  if (restartButton) {
+  const resetButton = document.querySelector<HTMLButtonElement>("#resetButton");
+  if (resetButton) {
     let resetTimeout: number | null = null;
 
     // TODO: Clicking a tile while resetTimeout is active should trigger state1
     const state1 = (): void => {
-      restartButton.textContent = "Reset";
-      restartButton.onclick = state2;
+      resetButton.textContent = "Reset";
+      resetButton.onclick = state2;
 
       if (resetTimeout !== null) {
         clearTimeout(resetTimeout);
@@ -831,8 +831,8 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
     };
 
     const state2 = (): void => {
-      restartButton.textContent = "Are you sure?";
-      restartButton.onclick = (): void => {
+      resetButton.textContent = "Are you sure?";
+      resetButton.onclick = (): void => {
         reset();
         state1();
       };

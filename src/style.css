@@ -12,6 +12,10 @@
   color: #fff;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   height: 100%;
@@ -40,4 +44,9 @@ body {
   gap: 1rem;
   background-color: oklch(0.4 0 0 / 0.95);
   border-radius: 0.5rem;
+  border: 1px solid oklch(0.5 0 0 / 0.95);
+}
+
+#resetButton {
+  margin-left: auto;
 }
