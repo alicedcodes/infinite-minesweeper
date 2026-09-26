@@ -44,6 +44,7 @@ export const MAX_CACHED_CHUNKS = 320;
 export const VIEWPORT_PADDING_CHUNKS = 2;
 export const SWEEPER_INTERVAL_MS = 3000;
 
+export const TILES_PER_TICK = 200;
 export const ANIMATION_DELAY = 50;
 export const ANIMATION_DURATION = 150;
 

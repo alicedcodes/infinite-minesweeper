@@ -37,6 +37,7 @@ import {
   DB_VERSION,
   DB_STORE,
   DEFAULT_DENSITY,
+  TILES_PER_TICK,
 } from "./constants";
 
 type TileState = 0 | 1 | 2;
@@ -430,7 +431,7 @@ function tick(): void {
   }
 
   let i = 0;
-  while (revealQueueHead < revealQueue.length && i++ < 100) {
+  while (revealQueueHead < revealQueue.length && i++ < TILES_PER_TICK) {
     const [sx, sy, sRevealAt] = revealQueue[revealQueueHead++]!;
 
     const finished = isFinished(getTileMetaData(sx, sy));
