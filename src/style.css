@@ -10,6 +10,7 @@
   font-family: Arial, Helvetica, sans-serif, "Noto Emoji Variable";
   color-scheme: dark;
   color: #fff;
+  user-select: none;
 }
 
 * {
