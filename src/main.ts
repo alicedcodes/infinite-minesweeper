@@ -609,7 +609,7 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
     return;
   }
 
-  if (reveal) {
+  if (reveal || (!started && touchControls)) {
     if (state === TILE_HIDDEN) {
       if (!started) {
         started = true;
