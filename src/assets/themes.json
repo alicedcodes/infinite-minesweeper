@@ -20,11 +20,11 @@
     "TILE_6_TX": "#000",
     "TILE_7_TX": "#000",
     "TILE_8_TX": "#000",
-    "FLAG_BG": "oklch(0.9 0 0)",
-    "FLAG_TX": "#000",
-    "MINE_BG": "oklch(0.9 0 0)",
-    "MINE_TX": "#000",
+    "FLAG_BG": "oklch(0.3 0 0)",
+    "FLAG_TX": "oklch(0.9 0 0)",
+    "MINE_BG": "oklch(0.3 0 0)",
+    "MINE_TX": "oklch(0.7 0.2 30)",
     "CAN": "oklch(0.3 0 0)",
-    "CANT": "oklch(0.3 0 0 / 0.3)"
+    "CANT": "oklch(0.2 0 0)"
   }
 ]

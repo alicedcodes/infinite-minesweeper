@@ -232,14 +232,14 @@ function renderChunk(level: number, cx: number, cy: number, now: number): ImageB
       let tx = "";
       if (state === TILE_REVEALED) {
         if (mine) {
-          bg = t.MINE_BG;
+          bg = !drawDetails && t.MINE_BG === t.CAN ? t.MINE_TX : t.MINE_BG;
           tx = t.MINE_TX;
         } else {
           bg = t[`TILE_${nearbyMines}_BG` as keyof typeof t];
           tx = t[`TILE_${nearbyMines}_TX` as keyof typeof t];
         }
       } else if (state === TILE_FLAGGED) {
-        bg = t.FLAG_BG;
+        bg = !drawDetails && t.FLAG_BG === t.CAN ? t.FLAG_TX : t.FLAG_BG;
         tx = t.FLAG_TX;
       }
 

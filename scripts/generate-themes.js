@@ -21,10 +21,10 @@ const themeConfigs = [
     name: "Default",
     border: "oklch(0.2 0 0)",
     safe: [(n) => `oklch(0.8 0.35 ${((360 / 8) * Math.max(1, n)) % 360})`, () => "#000"],
-    flag: ["oklch(0.9 0 0)", "#000"],
-    mine: ["oklch(0.9 0 0)", "#000"],
+    flag: ["oklch(0.3 0 0)", "oklch(0.9 0 0)"],
+    mine: ["oklch(0.3 0 0)", "oklch(0.7 0.2 30)"],
     can: "oklch(0.3 0 0)",
-    cant: "oklch(0.3 0 0 / 0.3)",
+    cant: "oklch(0.2 0 0)",
   },
 ];
 
