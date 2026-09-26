@@ -631,7 +631,7 @@ function handleTileClick(x: number, y: number, reveal: boolean, touchControls: b
   dirty = true;
 }
 
-{
+function addListeners(): void {
   const observer = new ResizeObserver((entries) => {
     const entry = entries[0]!;
     const { width, height } = entry.contentRect;
@@ -848,6 +848,7 @@ document.fonts
   .load(`0px ${FONT_FAMILY}`)
   .then(async () => {
     await load();
+    addListeners();
     requestAnimationFrame(tick);
     scheduleSave();
   })
