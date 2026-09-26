@@ -47,4 +47,6 @@ body {
   border-radius: 0.5rem;
   border: 1px solid oklch(0.45 0 0 / 0.95);
   justify-content: space-between;
+  max-width: 80rem;
+  margin-inline: auto;
 }
