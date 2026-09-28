@@ -1,11 +1,6 @@
 import "./style.css";
 import THEMES from "./assets/themes.json" with { type: "json" };
 import {
-  TARGET_SCREEN_PX,
-  BASE_CHUNK_WORLD,
-  MIN_LEVEL,
-  MAX_LEVEL,
-  BITMAP_RES,
   TILE_WORLD_SIZE,
   MAX_CACHED_CHUNKS,
   VIEWPORT_PADDING_CHUNKS,
@@ -14,7 +9,7 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   WHEEL_ZOOM_SPEED,
-  SAFE_RADIUS,
+  SAFE_ZONE_RADIUS,
   TOUCHPAD_ZOOM_SPEED,
   TILE_FLAGGED,
   TILE_HIDDEN,
@@ -24,7 +19,6 @@ import {
   BORDER_WIDTH_FRACTION,
   NEIGHBOUR_OFFSETS,
   FINISHED_BIT,
-  NEARBY_MINES_MASK,
   FONT_SIZE,
   FONT_FAMILY,
   CAN_INTERACT_BIT,
@@ -38,29 +32,22 @@ import {
   DB_STORE,
   DEFAULT_DENSITY,
   TILES_PER_TICK,
+  MAX_QUEUE_HEAD,
+  BITMAP_RES,
 } from "./constants";
-
-type TileState = 0 | 1 | 2;
-
-type ChunkKey = `${number}:${number}:${number}`;
-
-interface ChunkEntry {
-  level: number;
-  cx: number;
-  cy: number;
-  bitmap: ImageBitmap;
-}
-
-type SaveData = [
-  seed: number,
-  mineDensity: number,
-  started: boolean,
-  startX: number,
-  startY: number,
-  camX: number,
-  camY: number,
-  zoom: number,
-];
+import type { TileState, ChunkKey, ChunkEntry, SaveData } from "./types";
+import {
+  chunkWorldSize,
+  getCanInteract,
+  getNearbyMines,
+  hash2D,
+  isFinished,
+  packKey,
+  packTileKey,
+  pickLevel,
+  promisify,
+  randomSeed,
+} from "./utils";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#app")!;
 if (!canvas) throw new Error("Could not get #app element.");
@@ -68,10 +55,6 @@ canvas.style.touchAction = "none";
 
 const ctx = canvas.getContext("2d", { alpha: false })!;
 if (!ctx) throw new Error("Browser does not support canvas.");
-
-function randomSeed(): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0]!;
-}
 
 const tileStates = new Map<number, TileState>();
 // TODO: Manage metaDataCache memory (e.g., removing old meta data)
@@ -82,10 +65,6 @@ let mineDensity = DEFAULT_DENSITY;
 let started = false;
 let startX = 0;
 let startY = 0;
-
-function packTileKey(x: number, y: number): number {
-  return ((x & 0xffff) << 16) | (y & 0xffff);
-}
 
 function getTile(x: number, y: number): TileState {
   return tileStates.get(packTileKey(x, y)) ?? TILE_HIDDEN;
@@ -109,17 +88,12 @@ function setTile(x: number, y: number, state: TileState): void {
   }
 }
 
-function hash2D(x: number, y: number): number {
-  let h = seed ^ Math.imul(y, 73856093) ^ Math.imul(x, 19349663);
-  h = Math.imul(h ^ (h >>> 16), 2246822507);
-  h = Math.imul(h ^ (h >>> 13), 3266489917);
-  return (h ^ (h >>> 16)) >>> 0;
-}
-
 function hasMine(x: number, y: number): boolean {
-  return started && Math.abs(x - startX) <= SAFE_RADIUS && Math.abs(y - startY) <= SAFE_RADIUS
+  return started &&
+    Math.abs(x - startX) <= SAFE_ZONE_RADIUS &&
+    Math.abs(y - startY) <= SAFE_ZONE_RADIUS
     ? false
-    : hash2D(x, y) < mineDensity * 4294967296;
+    : hash2D(x, y, seed) < mineDensity * 2 ** 32;
 }
 
 function getTileMetaData(x: number, y: number): number {
@@ -152,18 +126,6 @@ function getTileMetaData(x: number, y: number): number {
   return data;
 }
 
-function isFinished(data: number): boolean {
-  return (data & FINISHED_BIT) === FINISHED_BIT;
-}
-
-function getCanInteract(data: number): boolean {
-  return (data & CAN_INTERACT_BIT) === CAN_INTERACT_BIT;
-}
-
-function getNearbyMines(data: number): number {
-  return (data & NEARBY_MINES_MASK) >> 2;
-}
-
 let canvasWidth = 0;
 let canvasHeight = 0;
 
@@ -172,19 +134,6 @@ let dpr = window.devicePixelRatio || 1;
 let zoom = 1;
 let camX = 0;
 let camY = 0;
-
-function pickLevel(): number {
-  const raw = Math.log2(TARGET_SCREEN_PX / dpr / (BASE_CHUNK_WORLD * zoom));
-  return Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, Math.round(raw)));
-}
-
-function chunkWorldSize(level: number): number {
-  return BASE_CHUNK_WORLD * 2 ** level;
-}
-
-function packKey(level: number, cx: number, cy: number): ChunkKey {
-  return `${level}:${cx}:${cy}`;
-}
 
 const scratch = new OffscreenCanvas(BITMAP_RES, BITMAP_RES);
 const scratchCtx = scratch.getContext("2d")!;
@@ -368,7 +317,7 @@ function computeChunkRange(padding = 0): {
   startCY: number;
   endCY: number;
 } {
-  const level = pickLevel();
+  const level = pickLevel(zoom, dpr);
   const worldSize = chunkWorldSize(level);
 
   const worldLeft = camX - canvasWidth / 2 / zoom;
@@ -456,7 +405,7 @@ function tick(): void {
     }
   }
 
-  if (revealQueueHead > 1000 && revealQueueHead > revealQueue.length / 2) {
+  if (revealQueueHead > MAX_QUEUE_HEAD && revealQueueHead > revealQueue.length / 2) {
     revealQueue.splice(0, revealQueueHead);
     revealQueueHead = 0;
   }
@@ -481,20 +430,13 @@ function tick(): void {
 
 let saveTimer: number | undefined;
 
-function promisify<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = (): void => resolve(req.result);
-    req.onerror = (): void => reject(req.error);
-  });
-}
-
 function openDb(): Promise<IDBDatabase> {
   const req = indexedDB.open(DB_NAME, DB_VERSION);
   req.onupgradeneeded = (e): void => {
     const db = (e.target as IDBOpenDBRequest).result;
     if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
   };
-  return promisify(req as unknown as IDBRequest<IDBDatabase>);
+  return promisify<IDBDatabase>(req);
 }
 
 async function load(): Promise<void> {
@@ -596,7 +538,8 @@ function reset(): void {
 }
 
 function handleTileClick(x: number, y: number, reveal: boolean, touchControls: boolean): void {
-  if (BITMAP_RES / (chunkWorldSize(pickLevel()) / TILE_WORLD_SIZE) < DRAW_DETAILS_START) return;
+  if (BITMAP_RES / (chunkWorldSize(pickLevel(zoom, dpr)) / TILE_WORLD_SIZE) < DRAW_DETAILS_START)
+    return;
 
   const state = getTile(x, y);
 
